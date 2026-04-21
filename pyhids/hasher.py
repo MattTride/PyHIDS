@@ -10,7 +10,7 @@ import hashlib
 from pathlib import Path
 from typing import Optional
 
-chunk_size = 64 * 1024
+CHUNK_SIZE = 64 * 1024
 
 def hash_file(path: str | Path, algorithm: str = "sha256") -> Optional[str]:
     """
@@ -39,7 +39,7 @@ def hash_file(path: str | Path, algorithm: str = "sha256") -> Optional[str]:
             #   效果：进入 with 块时打开文件，退出时（无论正常还是异常）
             #   自动关闭文件。相当于 Java 的 try-with-resources。
             #
-            while chunk := f.read(chunk_size):
+            while chunk := f.read(CHUNK_SIZE):
                 hasher.update(chunk)
     except (PermissionError, OSError):
         return None
