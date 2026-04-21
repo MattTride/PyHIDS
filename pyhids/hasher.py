@@ -25,7 +25,7 @@ def hash_file(path: str | Path, algorithm: str = "sha256") -> Optional[str]:
     """
     path = Path(path)
     if not path.is_file():
-        reutrn = None
+        return None
 
     try:
         hasher = hashlib.new(algorithm)
