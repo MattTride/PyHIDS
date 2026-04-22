@@ -13,4 +13,4 @@ A lightweight host-based intrusion detection system written in Python.
 
 ## Status
 
-🚧 Under active development. Started April 2026.
+🚧 Under active development. Started May 2026.
