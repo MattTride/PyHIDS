@@ -1,0 +1,18 @@
+{
+  "metadata": {
+    "version": "1.0",
+    "created_at": "2026-04-23T19:40:00",
+    "algorithm": "sha256",
+    "total_files": 2
+  },
+  "files": {
+    "demo_files/etc/passwd": {
+      "hash": "a93a5c2c6ad86959e3ca9287d150566afeb43267dc2d76aa47823d7f0149f5ba ",
+      "size": 11
+      },
+    "demo_files/etc/hosts": ,
+      "hash": "081ef9d5367595d16e30b4b4549d9f43537320508b4ce0788963e10e4f808857",
+      "size": 20
+    }
+  }
+}

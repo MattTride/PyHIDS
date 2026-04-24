@@ -1,0 +1,12 @@
+algorithm: sha256
+paths:
+  - demo_files/etc/passwd
+  - demo_files/etc/hosts
+  - demo_files/home/authorized_keys
+
+exclude:
+  - "*.log"
+  - "*.tmp"
+  - ".DS_Store"
+
+scan_interval: 60

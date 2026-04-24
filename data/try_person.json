@@ -1,0 +1,10 @@
+{
+  "name": "Tride",
+  "age": 22,
+  "hobbies": [
+    "coding",
+    "reading"
+  ],
+  "email": null,
+  "is_student": true
+}

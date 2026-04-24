@@ -51,7 +51,7 @@ def build_baseline(cfg: Config) -> dict:
         "total_files": len(files_info)
     }
 
-        #组装字典，然后返回
+    #组装字典，然后返回
     baseline = {
         "metadata": metadata,
         "files": files_info
@@ -61,7 +61,9 @@ def build_baseline(cfg: Config) -> dict:
 
 
 def save_baseline(baseline: dict, path: str | Path = DEFAULT_BASELINE_PATH) -> None:
-    ...
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(baseline, f, indent=2, ensure_ascii=False)
+    print(f"基线已经保存到{path}")
 
 
 if __name__ == "__main__":
