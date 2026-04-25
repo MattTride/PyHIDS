@@ -4,7 +4,7 @@ A lightweight host-based intrusion detection system written in Python.
 
 ## Features (WIP)
 
-- [ ✅] File integrity monitoring (SHA-256 baseline)
+- [ ✅ ] File integrity monitoring (SHA-256 baseline)
 - [ ] SSH brute-force detection via auth log parsing
 - [ ] SQLite-based event persistence
 - [ ] Email & DingTalk webhook alerting
