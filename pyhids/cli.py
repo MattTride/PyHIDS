@@ -11,14 +11,38 @@ from pyhids.baseline import build_baseline, save_baseline
 from pyhids.config import load_config
 from pyhids.checker import check
 
-def main():
+
+def main() -> None:
     parser = argparse.ArgumentParser(
         prog="pyhids",
         description="PyHIDS - 轻量级主机入侵检测系统",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    atg = parser.parse_args()
+    parser_baseline = subparsers.add_parser("baseline", help="生成文件指纹基线", )
+    parser_baseline.add_argument("--config", type=str, default=None, help="默认文件路径(config/watchlist.yaml)")
+    parser_baseline.add_argument("--baseline", type=str, default=None, help="基线保存路径(data/baseline.json)")
 
-    if __name__ == "__main__":
-        main()
+    parser_check = subparsers.add_parser("check", help="检查文件完整性", )
+    parser_check.add_argument("--config", type=str, default=None, help="默认文件路径(config/watchlist.yaml)")
+    parser_check.add_argument("--baseline", type=str, default=None, help="基线保存路径(data/baseline.json)")
+
+    args = parser.parse_args()
+
+    if args.command == "baseline":
+        if args.config is None:
+            cfg = load_config()
+        else:
+            cfg = load_config(args.config)
+
+        baseline = build_baseline(cfg)
+        if args.baseline is None:
+            save_baseline(baseline)
+        else:
+            save_baseline(baseline, args.baseline)
+
+        print(f"基线已经保存，一共{baseline['metadata']["total_files"]}个文件")
+
+
+if __name__ == "__main__":
+    main()
