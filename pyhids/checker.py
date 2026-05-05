@@ -69,10 +69,8 @@ def check(cfg: Config, baseline_path: str | Path = DEFAULT_BASELINE_PATH) -> dic
 
 
 
-
-if __name__ == "__main__":
-    cfg = load_config()
-    report = check(cfg)
+def output_report(report: dict) -> None:
+    """把一份检查报告以人类可读的形式打印到 stdout。"""
     summary = report["summary"]
     print(f"\n{'=' * 50}")
     print(f"  PyHIDS 完整性检查报告")
@@ -104,3 +102,11 @@ if __name__ == "__main__":
         print("✅ 一切正常，未发现异常。\n")
     else:
         print(f"🚨 发现 {summary['total_issues']} 个异常，请立即检查！\n")
+
+
+
+
+if __name__ == "__main__":
+    cfg = load_config()
+    report = check(cfg)
+    output_report(report)

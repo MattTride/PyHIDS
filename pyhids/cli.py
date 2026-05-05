@@ -6,10 +6,11 @@ pyhids.cli — 命令行入口模块
 from __future__ import annotations
 
 import argparse
+import sys
 
 from pyhids.baseline import build_baseline, save_baseline
 from pyhids.config import load_config
-from pyhids.checker import check
+from pyhids.checker import check, output_report
 
 
 def main() -> None:
@@ -19,29 +20,54 @@ def main() -> None:
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
+    # ================== 窗口 A：baseline 业务 ==================
     parser_baseline = subparsers.add_parser("baseline", help="生成文件指纹基线", )
     parser_baseline.add_argument("--config", type=str, default=None, help="默认文件路径(config/watchlist.yaml)")
     parser_baseline.add_argument("--baseline", type=str, default=None, help="基线保存路径(data/baseline.json)")
 
+    # ================== 窗口 B：check 业务 ==================
     parser_check = subparsers.add_parser("check", help="检查文件完整性", )
     parser_check.add_argument("--config", type=str, default=None, help="默认文件路径(config/watchlist.yaml)")
     parser_check.add_argument("--baseline", type=str, default=None, help="基线保存路径(data/baseline.json)")
 
+
     args = parser.parse_args()
 
+    # 【分支 A】：如果用户终端输入的是 `python cli.py baseline
     if args.command == "baseline":
         if args.config is None:
             cfg = load_config()
         else:
             cfg = load_config(args.config)
 
+    #使用baseline干活，生成基线字典
         baseline = build_baseline(cfg)
+
+    #使用baseline干活，保存到硬盘
         if args.baseline is None:
             save_baseline(baseline)
         else:
             save_baseline(baseline, args.baseline)
 
-        print(f"基线已经保存，一共{baseline['metadata']["total_files"]}个文件")
+        print(f"基线已经保存，一共{baseline['metadata']['total_files']}个文件")
+
+    # 【分支 B】：如果用户终端输入的是 `python cli.py check
+    if args.command == "check":
+        if args.config is None:
+            cfg = load_config()
+        else:
+            cfg = load_config(args.config)
+
+    #使用check干活
+        if args.baseline is None:
+            report = check(cfg)
+        else:
+            report = check(cfg, baseline_path=args.baseline)
+
+        output_report(report)
+
+        if report["summary"]["total_issues"] > 0:
+            sys.exit(1)
 
 
 if __name__ == "__main__":
