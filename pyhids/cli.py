@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import sys
 
+from pyhids.log import setup_logging
 from pyhids.baseline import build_baseline, save_baseline
 from pyhids.config import load_config
 from pyhids.checker import check, output_report
@@ -17,6 +18,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         prog="pyhids",
         description="PyHIDS - 轻量级主机入侵检测系统",
+    )
+    parser.add_argument(
+        "--log-level",
+        default="INFO",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        help="日志级别（默认 INFO）",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -32,6 +39,7 @@ def main() -> None:
 
 
     args = parser.parse_args()
+    setup_logging(args.log_level)
 
     # 【分支 A】：如果用户终端输入的是 `python cli.py baseline
     if args.command == "baseline":

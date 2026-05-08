@@ -10,6 +10,8 @@ from pathlib import Path
 
 from pyhids.config import Config, DEFAULT_CONFIG_PATH, load_config
 from pyhids.hasher import hash_file
+import logging
+logger = logging.getLogger(__name__)
 
 DEFAULT_BASELINE_PATH = Path("data/baseline.json")
 BASELINE_VERSION = "1.0"
@@ -33,7 +35,7 @@ def build_baseline(cfg: Config) -> dict:
         file_hash = hash_file(path, algorithm=cfg.algorithm)
 
         if file_hash is None:
-            print(f"跳过文件：{file_path}")
+            logger.warning("跳过文件：%s", file_path)
             continue
 
         #获得文件大小，然后塞进info字典
@@ -63,10 +65,13 @@ def build_baseline(cfg: Config) -> dict:
 def save_baseline(baseline: dict, path: str | Path = DEFAULT_BASELINE_PATH) -> None:
     with open(path, "w", encoding="utf-8") as f:
         json.dump(baseline, f, indent=2, ensure_ascii=False)
-    print(f"基线已经保存到{path}")
+    logger.info("基线已经保存到 %s", path)
 
 
 if __name__ == "__main__":
+    from pyhids.log import setup_logging
+    setup_logging("DEBUG")
+    
     from pyhids.config import Config
     cfg = load_config()
     baseline = build_baseline(cfg)
