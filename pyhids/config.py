@@ -15,11 +15,20 @@ DEFAULT_CONFIG_PATH = Path("config/watchlist.yaml")
 
 
 @dataclass
+class SSHConfig:
+    """SSH 爆破检测的配置子结构。"""
+    log_path: str = "/var/log/auth.log"
+    window_seconds: int = 60
+    threshold: int = 5
+
+
+@dataclass
 class Config:
     algorithm: str = "sha256"
     paths: List[str] = field(default_factory=list)
     exclude: List[str] = field(default_factory=list)
     scan_interval: int = 60
+    ssh: SSHConfig = field(default_factory=SSHConfig)
 
 
 def load_config(path: str | Path = DEFAULT_CONFIG_PATH) -> Config:
@@ -44,26 +53,26 @@ def load_config(path: str | Path = DEFAULT_CONFIG_PATH) -> Config:
         raise FileNotFoundError(f"配置文件不存在: {path}")
 
     # 第 3 步：打开并解析 YAML
-    # 用 "r" 文本模式 + utf-8 编码（YAML 是文本，不是二进制）
     try:
         with path.open("r", encoding="utf-8") as f:
             data = yaml.safe_load(f)
     except yaml.YAMLError as e:
-        # YAML 语法错误（比如缩进不对、冒号后没空格）
         raise ValueError(f"配置文件格式错误: {e}")
 
     # 第 4 步：处理空文件的边界情况
-    # 如果 YAML 文件是空的，safe_load 返回 None，不是空字典
-    # 这种情况我们让它用全部默认值
     if data is None:
         data = {}
 
-    # 第 5 步：把字典转成 Config 对象
+    # 第 5 步：把 ssh 子字典转成 SSHConfig 实例
+    # （YAML 加载出来的 ssh 字段是普通 dict，需要手动构造成 dataclass）
+    ssh_data = data.pop("ssh", {})
+    data["ssh"] = SSHConfig(**ssh_data)
+
+    # 第 6 步：把字典转成 Config 对象
     return Config(**data)
 
 
 if __name__ == "__main__":
-    # 自测
     cfg = load_config()
     print(f"算法: {cfg.algorithm}")
     print(f"监控路径 ({len(cfg.paths)} 个):")
@@ -71,3 +80,7 @@ if __name__ == "__main__":
         print(f"  - {p}")
     print(f"排除规则: {cfg.exclude}")
     print(f"扫描间隔: {cfg.scan_interval}s")
+    print(f"SSH 配置:")
+    print(f"  log_path:       {cfg.ssh.log_path}")
+    print(f"  window_seconds: {cfg.ssh.window_seconds}")
+    print(f"  threshold:      {cfg.ssh.threshold}")
