@@ -2,13 +2,14 @@
 pyhids.ssh_check —— SSH 暴破检测
 """
 from __future__ import annotations
-from collections import defaultdict
-from datetime import timedelta
+
+from asyncio import events
 from collections import defaultdict
 from datetime import timedelta
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
+from pathlib import Path
 
 import logging
 import re
@@ -98,3 +99,56 @@ def detect_brute_force(
                 ))
                 break
     return detected
+
+def parse_log_file(path: str | Path) -> list[SSHEvent]:
+    """逐行读取sshd日志文件，返回所有可以识别的SSH事件。"""
+    events = []
+    with open(path, "r", encoding="utf-8") as f:
+        for line in f:
+            event = parse_log_line(line)
+            if event is not None:
+                events.append(event)
+
+    logger.info("从 %s 解析出 %d 个SSH事件", path, len(events))
+    return events
+
+def check_ssh(
+        log_path: str | Path,
+        window_seconds: int = 60,
+        threshold: int = 5,
+) -> dict:
+    """读 auth.log → 检测暴破 → 打包成 report dict"""
+    events = parse_log_file(log_path)
+    attempts = detect_brute_force(events, window_seconds, threshold)
+    return {
+        "attempts": attempts,
+        "summary": {
+            "total_events": len(events),
+            "total_attempts": len(attempts),
+            "window_seconds": window_seconds,
+            "threshold": threshold,
+            "checked_at": datetime.now().isoformat(),
+        },
+    }
+
+
+def print_ssh_report(report: dict) -> None:
+    """把 SSH 检测报告打印到 stdout。"""
+    summary = report["summary"]
+
+    print(f"\n{'=' * 50}")
+    print(f"  PyHIDS SSH 暴破检测报告")
+    print(f"{'=' * 50}")
+    print(f"检查时间: {summary['checked_at']}")
+    print(f"扫描事件: {summary['total_events']}")
+    print(f"窗口阈值: {summary['threshold']} 次 / {summary['window_seconds']} 秒")
+    print(f"检测到攻击: {summary['total_attempts']}")
+    print(f"{'=' * 50}\n")
+
+    if summary["total_attempts"] == 0:
+        print("未检检测到SSH爆破嫌疑。 \n")
+    else:
+        for attempt in report["attempts"]:
+            print("爆破嫌疑！\n")
+            print(f"ip:{attempt.ip}: {attempt.fail_count}次失败")
+            print(f"窗口：{attempt.window_start} -> {attempt.window_end}")
