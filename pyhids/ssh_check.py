@@ -2,6 +2,10 @@
 pyhids.ssh_check —— SSH 暴破检测
 """
 from __future__ import annotations
+from collections import defaultdict
+from datetime import timedelta
+from collections import defaultdict
+from datetime import timedelta
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
@@ -58,5 +62,39 @@ def parse_log_line(line: str) -> Optional[SSHEvent]:
     return SSHEvent(timestamp=timestamp_str, ip=ip, user=user, result=result)
 
 
+@dataclass
+class BruteForceAttempt:
+    ip: str
+    fail_count: int
+    window_start: datetime
+    window_end: datetime
+    # ← 类定义到这就结束了，下面是空行
 
 
+def detect_brute_force(
+        events: list[SSHEvent],
+        window_seconds: int = 60,
+        threshold: int = 5,
+) -> list[BruteForceAttempt]:
+    fails_by_ip = defaultdict(list)
+    for event in events:
+        if event.result == "fail":
+            fails_by_ip[event.ip].append(event.timestamp)
+
+    detected = []
+    for ip, timestamps in fails_by_ip.items():
+        timestamps.sort()
+        window = timedelta(seconds=window_seconds)
+        for i in range(len(timestamps)):
+            window_end = timestamps[i]
+            window_start = window_end - window
+            count = sum(1 for t in timestamps if window_start <= t <= window_end)
+            if count >= threshold:
+                detected.append(BruteForceAttempt(
+                    ip=ip,
+                    fail_count=count,
+                    window_start=window_start,
+                    window_end=window_end,
+                ))
+                break
+    return detected
