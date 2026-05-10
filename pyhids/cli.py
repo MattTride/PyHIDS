@@ -12,6 +12,7 @@ from pyhids.log import setup_logging
 from pyhids.baseline import build_baseline, save_baseline
 from pyhids.config import load_config
 from pyhids.checker import check, output_report
+from pyhids.ssh_check import check_ssh, print_ssh_report
 
 
 def main() -> None:
@@ -36,8 +37,10 @@ def main() -> None:
     parser_check = subparsers.add_parser("check", help="检查文件完整性", )
     parser_check.add_argument("--config", type=str, default=None, help="默认文件路径(config/watchlist.yaml)")
     parser_check.add_argument("--baseline", type=str, default=None, help="基线保存路径(data/baseline.json)")
-
-
+    # ================== 窗口 C：ssh-check 业务 ==================
+    parser_ssh = subparsers.add_parser("ssh-check", help="SSH爆破检测")
+    parser_ssh.add_argument("--config", type=str, default=None, help="配置文件路径(config/watchlist.yaml)")
+    parser_ssh.add_argument("--log-path", type=str, default=None, help="auth.log 路径（覆盖 watchlist.yaml 里的 ssh.log_path）")
     args = parser.parse_args()
     setup_logging(args.log_level)
 
@@ -60,7 +63,7 @@ def main() -> None:
         print(f"基线已经保存，一共{baseline['metadata']['total_files']}个文件")
 
     # 【分支 B】：如果用户终端输入的是 `python cli.py check
-    if args.command == "check":
+    elif args.command == "check":
         if args.config is None:
             cfg = load_config()
         else:
@@ -77,6 +80,24 @@ def main() -> None:
         if report["summary"]["total_issues"] > 0:
             sys.exit(1)
 
+    elif args.command == "ssh-check":
+        if args.config is None:
+            cfg = load_config()
+        else:
+            cfg = load_config(args.config)
+
+        log_path = args.log_path or cfg.ssh.log_path
+
+        report = check_ssh(
+            log_path,
+            window_seconds=cfg.ssh.window_seconds,
+            threshold=cfg.ssh.threshold,
+        )
+
+        print_ssh_report(report)
+
+        if report["summary"]["total_attempts"] > 0:
+            sys.exit(1)
 
 if __name__ == "__main__":
     main()
