@@ -3,9 +3,22 @@ pyhids.store — SQLite 事件持久化层
 """
 from __future__ import annotations
 
+import json
 import logging
 import sqlite3
 from pathlib import Path
+from dataclasses import dataclass
+from datetime import datetime
+
+@dataclass
+class Event:
+    """一条等待写入数据库的事件(内存表示)"""
+    detected_at: datetime
+    source: str
+    # "ssh_rute_force"
+    severity: str
+    summary: str
+    payload: dict
 
 logger = logging.getLogger(__name__)
 
@@ -39,4 +52,23 @@ def init_db(db_path: Path = DEFAULT_DB_PATH) -> None:
     conn.close()
 
     logger.info("已初始化数据库 %s", db_path)
+
+def insert_event(event: Event, db_path: Path = DEFAULT_DB_PATH) -> int:
+    conn = sqlite3.connect(str(db_path))
+
+    SQL = """
+          INSERT INTO events (detected_at, source, severity, summary, payload)
+          VALUES (?, ?, ?, ?, ?) \
+          """
+
+    params = (event.detected_at.isoformat(), event.source, event.severity, event.summary, json.dumps(event.payload, ensure_ascii=False))
+
+    cursor = conn.execute(SQL, params)
+
+    conn.commit()
+    new_id = cursor.lastrowid
+    conn.close()
+
+    logger.info("写入事件id=%s sourse=%s", new_id, event.source)
+    return new_id
 
