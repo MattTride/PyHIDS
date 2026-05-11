@@ -10,6 +10,9 @@ from pathlib import Path
 from dataclasses import dataclass
 from datetime import datetime
 
+from _pytest._code import source
+
+
 @dataclass
 class Event:
     """一条等待写入数据库的事件(内存表示)"""
@@ -71,4 +74,50 @@ def insert_event(event: Event, db_path: Path = DEFAULT_DB_PATH) -> int:
 
     logger.info("写入事件id=%s sourse=%s", new_id, event.source)
     return new_id
+
+def query_events(
+        limit: int = 50,
+        source: str | None = None,
+        db_path: Path = DEFAULT_DB_PATH,
+) -> list[Event]:
+    """
+    查询最近的事件，按时间倒序。
+
+    Args:
+        limit: 最多返回多少条
+        source: 可选，按 source 字段过滤（None 表示不过滤）
+
+    Returns:
+        Event 列表，最新的在前
+    """
+    conn = sqlite3.connect(db_path)
+
+    if source is not None:
+        SQL = """
+            SELECT detected_at, source, severity, summary, payload
+            FROM events
+            WHERE source = ?
+            ORDER BY detected_at DESC
+            LIMIT ?
+        """
+        params = (source, limit)
+    else:
+        SQL = """
+            SELECT detected_at, source, severity, summary, payload
+            FROM events
+            ORDER BY detected_at DESC
+            LIMIT ?
+        """
+        params = (limit,)
+
+    cursor = conn.execute(SQL, params)
+    rows = cursor.fetchall()
+    conn.close()
+
+    events = []
+    for row in rows:
+        events.append(Event(detected_at=datetime.fromisoformat(row[0]),source=row[1],severity=row[2],summary=row[3],payload=json.loads(row[4])))
+
+    return events
+
 
