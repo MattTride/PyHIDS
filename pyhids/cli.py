@@ -8,12 +8,12 @@ from __future__ import annotations
 import argparse
 import sys
 
-from pyhids.store import query_events, print_events_table
+from pyhids.store import query_events, print_events_table, init_db, insert_event
 from pyhids.log import setup_logging
 from pyhids.baseline import build_baseline, save_baseline
 from pyhids.config import load_config
-from pyhids.checker import check, output_report
-from pyhids.ssh_check import check_ssh, print_ssh_report
+from pyhids.checker import check, output_report, event_from_file_change
+from pyhids.ssh_check import check_ssh, print_ssh_report, event_from_brute_force
 
 
 def main() -> None:
@@ -49,6 +49,7 @@ def main() -> None:
 
     args = parser.parse_args()
     setup_logging(args.log_level)
+    init_db()
 
     # 【分支 A】：如果用户终端输入的是 `python cli.py baseline
     if args.command == "baseline":
@@ -83,6 +84,11 @@ def main() -> None:
 
         output_report(report)
 
+        # 把每个 FIM 变化落库
+        for change_type in ("modified", "deleted", "added"):
+            for file_path in report[change_type]:
+                insert_event(event_from_file_change(change_type, file_path))
+
         if report["summary"]["total_issues"] > 0:
             sys.exit(1)
 
@@ -101,6 +107,10 @@ def main() -> None:
         )
 
         print_ssh_report(report)
+
+        # 把每个暴破嫌疑落库
+        for attempt in report["attempts"]:
+            insert_event(event_from_brute_force(attempt))
 
         if report["summary"]["total_attempts"] > 0:
             sys.exit(1)

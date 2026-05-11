@@ -3,7 +3,6 @@ pyhids.ssh_check —— SSH 暴破检测
 """
 from __future__ import annotations
 
-from asyncio import events
 from collections import defaultdict
 from datetime import timedelta
 from dataclasses import dataclass
@@ -13,6 +12,8 @@ from pathlib import Path
 
 import logging
 import re
+
+from pyhids.store import Event
 
 logger = logging.getLogger(__name__)
 
@@ -152,3 +153,19 @@ def print_ssh_report(report: dict) -> None:
             print("爆破嫌疑！\n")
             print(f"ip:{attempt.ip}: {attempt.fail_count}次失败")
             print(f"窗口：{attempt.window_start} -> {attempt.window_end}")
+
+
+def event_from_brute_force(attempt: BruteForceAttempt) -> Event:
+    """把一个 BruteForceAttempt 转成 Event。"""
+    return Event(
+        detected_at=datetime.now(),
+        source="ssh_brute_force",
+        severity="critical",
+        summary=f"{attempt.ip} 暴破嫌疑（{attempt.fail_count} 次 / 窗口 {attempt.window_start} → {attempt.window_end}）",
+        payload={
+            "ip": attempt.ip,
+            "fail_count": attempt.fail_count,
+            "window_start": attempt.window_start.isoformat(),
+            "window_end": attempt.window_end.isoformat(),
+        },
+    )

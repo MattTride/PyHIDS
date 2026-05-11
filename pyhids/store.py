@@ -138,3 +138,15 @@ def print_events_table(events: list[Event]) -> None:
 
     print(f"\n共 {len(events)} 条事件")
 
+
+def event_from_file_change(change_type: str, file_path: str) -> Event:
+    """把 FIM check 的一条变化（modified/deleted/added）转成 Event。"""
+    return Event(
+        detected_at=datetime.now(),
+        source="file_integrity",
+        severity="critical" if change_type in ("modified", "deleted") else "warning",
+        summary=f"{file_path} {change_type}",
+        payload={"file_path": file_path, "change": change_type},
+    )
+
+

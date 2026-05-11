@@ -5,6 +5,7 @@ pyhids.checker — 文件变化检测模块
      找出哪些文件被改动、删除、新增。
 """
 from __future__ import annotations
+from pyhids.store import Event
 
 import json
 from datetime import datetime
@@ -53,20 +54,12 @@ def compare_baselines(old_baseline: dict, new_baseline: dict) -> dict:
     }
 
 
-
-
-
-
-
-
 def check(cfg: Config, baseline_path: str | Path = DEFAULT_BASELINE_PATH) -> dict:
     """加载旧的基线 + 扫取当前状态 + 对比 + 返回报告"""
     old_baseline = load_baseline(baseline_path)
     new_baseline = build_baseline(cfg)
     report = compare_baselines(old_baseline, new_baseline)
     return report
-
-
 
 
 def output_report(report: dict) -> None:
@@ -104,7 +97,16 @@ def output_report(report: dict) -> None:
         print(f"🚨 发现 {summary['total_issues']} 个异常，请立即检查！\n")
 
 
-
+def event_from_file_change(change_type: str, file_path: str) -> Event:
+    """把一条FIM变化转化成Event"""
+    severity = "critical" if change_type in ("modified", "deleted") else "warning"
+    return Event(
+        detected_at=datetime.now(),
+        source="file_integrity",
+        severity=severity,
+        summary=f"{file_path} {change_type}",
+        payload={"file_path": file_path, "change": change_type}
+    )
 
 if __name__ == "__main__":
     cfg = load_config()
