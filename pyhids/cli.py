@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import sys
 
+from pyhids.store import query_events, print_events_table
 from pyhids.log import setup_logging
 from pyhids.baseline import build_baseline, save_baseline
 from pyhids.config import load_config
@@ -41,6 +42,11 @@ def main() -> None:
     parser_ssh = subparsers.add_parser("ssh-check", help="SSH爆破检测")
     parser_ssh.add_argument("--config", type=str, default=None, help="配置文件路径(config/watchlist.yaml)")
     parser_ssh.add_argument("--log-path", type=str, default=None, help="auth.log 路径（覆盖 watchlist.yaml 里的 ssh.log_path）")
+    # ================== 窗口 D：events 业务 ==================
+    parser_events = subparsers.add_parser("events", help="查询历史事件")
+    parser_events.add_argument("--limit", type=int, default=50, help="最多显示条数（默认 50）")
+    parser_events.add_argument("--source", type=str, default=None,help="按事件源过滤（file_integrity / ssh_brute_force）")
+
     args = parser.parse_args()
     setup_logging(args.log_level)
 
@@ -98,6 +104,10 @@ def main() -> None:
 
         if report["summary"]["total_attempts"] > 0:
             sys.exit(1)
+
+    elif args.command == "events":
+        events = query_events(limit=args.limit, source=args.source)
+        print_events_table(events)
 
 if __name__ == "__main__":
     main()

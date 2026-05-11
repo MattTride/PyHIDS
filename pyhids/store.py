@@ -121,3 +121,20 @@ def query_events(
     return events
 
 
+def print_events_table(events: list[Event]) -> None:
+    """以表格形式把事件列表打印到 stdout。"""
+    if not events:
+        print("（没有事件）")
+        return
+
+    # 表头
+    print(f"\n{'TIME':<20} {'SOURCE':<18} {'SEVERITY':<10} SUMMARY")
+    print("-" * 80)
+
+    # 每行一条事件
+    for ev in events:
+        time_str = ev.detected_at.strftime("%Y-%m-%d %H:%M:%S")
+        print(f"{time_str:<20} {ev.source:<18} {ev.severity:<10} {ev.summary}")
+
+    print(f"\n共 {len(events)} 条事件")
+
