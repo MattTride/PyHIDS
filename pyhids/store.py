@@ -10,15 +10,13 @@ from pathlib import Path
 from dataclasses import dataclass
 from datetime import datetime
 
-from _pytest._code import source
-
 
 @dataclass
 class Event:
     """一条等待写入数据库的事件(内存表示)"""
     detected_at: datetime
     source: str
-    # "ssh_rute_force"
+    # "ssh_brute_force"
     severity: str
     summary: str
     payload: dict
@@ -72,7 +70,7 @@ def insert_event(event: Event, db_path: Path = DEFAULT_DB_PATH) -> int:
     new_id = cursor.lastrowid
     conn.close()
 
-    logger.info("写入事件id=%s sourse=%s", new_id, event.source)
+    logger.info("写入事件id=%s source=%s", new_id, event.source)
     return new_id
 
 def query_events(
@@ -137,16 +135,5 @@ def print_events_table(events: list[Event]) -> None:
         print(f"{time_str:<20} {ev.source:<18} {ev.severity:<10} {ev.summary}")
 
     print(f"\n共 {len(events)} 条事件")
-
-
-def event_from_file_change(change_type: str, file_path: str) -> Event:
-    """把 FIM check 的一条变化（modified/deleted/added）转成 Event。"""
-    return Event(
-        detected_at=datetime.now(),
-        source="file_integrity",
-        severity="critical" if change_type in ("modified", "deleted") else "warning",
-        summary=f"{file_path} {change_type}",
-        payload={"file_path": file_path, "change": change_type},
-    )
 
 

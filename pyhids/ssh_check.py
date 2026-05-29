@@ -55,9 +55,8 @@ def parse_log_line(line: str) -> Optional[SSHEvent]:
     raw_result = match.group("result")
 
     clean_timestamp = " ".join(timestamp.split())
-    parsed_time = datetime.strptime(clean_timestamp, "%b %d %H:%M:%S")
     current_year = datetime.now().year
-    timestamp_str = parsed_time.replace(year=current_year)
+    timestamp_str = datetime.strptime(f"{current_year} {clean_timestamp}", "%Y %b %d %H:%M:%S")
 
     result = "success" if raw_result == "Accepted" else "fail"
 
