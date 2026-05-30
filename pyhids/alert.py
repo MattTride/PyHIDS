@@ -6,6 +6,8 @@ from __future__ import annotations
 from pyhids.store import Event
 
 import logging
+import json
+import urllib.request
 
 logger = logging.getLogger(__name__)
 
@@ -18,3 +20,16 @@ def format_alert(event: Event) -> str:
         f"时间: {time_str}\n"
         f"摘要: {event.summary}\n"
     )
+
+def send_dingtalk(text: str, webhook_url: str) -> None:
+    """通过钉钉自定义机器人 webhook 发送一条文本告警。"""
+    payload = {"msgtype": "text", "text": {"content": text}}
+    data = json.dumps(payload).encode("utf-8")
+    request = urllib.request.Request(
+        webhook_url,
+        data=data,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    urllib.request.urlopen(request, timeout=5)
+    logger.info("已发送钉钉告警到 %s", webhook_url)
