@@ -26,7 +26,6 @@ class SSHConfig:
 class Config:
     algorithm: str = "sha256"
     paths: List[str] = field(default_factory=list)
-    exclude: List[str] = field(default_factory=list)
     scan_interval: int = 60
     ssh: SSHConfig = field(default_factory=SSHConfig)
 
@@ -78,7 +77,6 @@ if __name__ == "__main__":
     print(f"监控路径 ({len(cfg.paths)} 个):")
     for p in cfg.paths:
         print(f"  - {p}")
-    print(f"排除规则: {cfg.exclude}")
     print(f"扫描间隔: {cfg.scan_interval}s")
     print(f"SSH 配置:")
     print(f"  log_path:       {cfg.ssh.log_path}")
