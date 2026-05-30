@@ -97,6 +97,13 @@ def test_detect_brute_force_slow_attack_does_not_trigger():
     events = _make_fail_events("9.9.9.9", count=5, interval_seconds=30)
     assert detect_brute_force(events, window_seconds=60, threshold=5) == []
 
+def test_detect_brute_force_window_start_is_first_failure():
+    events = _make_fail_events("1.2.3.4", count=5, interval_seconds=5)
+    result = detect_brute_force(events, window_seconds=60, threshold=5)
+
+    assert len(result) == 1
+    assert result[0].window_start == datetime(2026, 5, 8, 10, 0, 0)
+
 
 # ============================================================
 # parse_log_file

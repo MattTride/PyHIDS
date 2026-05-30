@@ -89,12 +89,12 @@ def detect_brute_force(
         for i in range(len(timestamps)):
             window_end = timestamps[i]
             window_start = window_end - window
-            count = sum(1 for t in timestamps if window_start <= t <= window_end)
-            if count >= threshold:
+            in_window = [t for t in timestamps if window_start <= t <= window_end]
+            if len(in_window) >= threshold:
                 detected.append(BruteForceAttempt(
                     ip=ip,
-                    fail_count=count,
-                    window_start=window_start,
+                    fail_count=len(in_window),
+                    window_start=min(in_window),
                     window_end=window_end,
                 ))
                 break
