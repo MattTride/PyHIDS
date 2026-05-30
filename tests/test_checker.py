@@ -1,4 +1,4 @@
-from pyhids.checker import compare_baselines
+from pyhids.checker import compare_baselines, event_from_file_change
 
 
 
@@ -35,3 +35,17 @@ def test_compare_baselines_detects_added_and_deleted():
     assert sorted(result["deleted"]) == ["a.txt"]
     assert sorted(result["unchanged"]) == ["b.txt"]
     assert result["summary"]["total_issues"] == 2
+
+
+def test_event_from_file_change_modified_is_critical():
+    event = event_from_file_change("modified", "/etc/passwd")
+
+    assert event.severity == "critical"
+    assert event.source == "file_integrity"
+    assert event.payload["change"] == "modified"
+
+
+def test_event_from_file_change_added_is_warning():
+    event = event_from_file_change("added", "/tmp/newfile.txt")
+
+    assert event.severity == "warning"

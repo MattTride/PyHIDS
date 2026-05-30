@@ -12,6 +12,8 @@ from pyhids.ssh_check import (
     parse_log_file,
     detect_brute_force,
     check_ssh,
+    BruteForceAttempt,
+    event_from_brute_force,
 )
 
 
@@ -138,18 +140,18 @@ def test_check_ssh_returns_complete_report(tmp_path):
     assert report["attempts"][0].ip == "1.2.3.4"
     assert report["attempts"][0].fail_count == 5
 
-
-def event_from_brute_force(attempt: BruteForceAttempt) -> Event:
-    """把一个 BruteForceAttempt 转成 Event。"""
-    return Event(
-        detected_at=datetime.now(),
-        source="ssh_brute_force",
-        severity="critical",
-        summary=f"{attempt.ip} 暴破嫌疑（{attempt.fail_count} 次 / 窗口 {attempt.window_start} → {attempt.window_end}）",
-        payload={
-            "ip": attempt.ip,
-            "fail_count": attempt.fail_count,
-            "window_start": attempt.window_start.isoformat(),
-            "window_end": attempt.window_end.isoformat(),
-        },
+def test_event_from_brute_force_serializes_datetimes():
+    attempt = BruteForceAttempt(
+        ip = "1.2.3.4",
+        fail_count = 5,
+        window_start = datetime(2026, 5, 21, 20, 0, 0),
+        window_end = datetime(2026, 5, 21, 20, 1, 0),
     )
+
+    event = event_from_brute_force(attempt)
+
+    assert event.source == "ssh_brute_force"
+    assert event.severity == "critical"
+    assert event.payload['ip'] == "1.2.3.4"
+    assert isinstance(event.payload['window_start'] , str)
+    assert event.payload['window_start'] == attempt.window_start.isoformat()
