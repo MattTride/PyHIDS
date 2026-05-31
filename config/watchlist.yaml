@@ -11,3 +11,6 @@ ssh:
   log_path: demo_files/auth.log    # 本地开发用 demo；生产请改成 /var/log/auth.log
   window_seconds: 60
   threshold: 5
+
+alert:
+  dingtalk_webhook: ""

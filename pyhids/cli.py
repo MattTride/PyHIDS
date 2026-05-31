@@ -14,6 +14,7 @@ from pyhids.baseline import build_baseline, save_baseline
 from pyhids.config import load_config
 from pyhids.checker import check, output_report, event_from_file_change
 from pyhids.ssh_check import check_ssh, print_ssh_report, event_from_brute_force
+from pyhids.alert import alert_if_critical
 
 
 def main() -> None:
@@ -87,7 +88,9 @@ def main() -> None:
         # 把每个 FIM 变化落库
         for change_type in ("modified", "deleted", "added"):
             for file_path in report[change_type]:
-                insert_event(event_from_file_change(change_type, file_path))
+                event = event_from_file_change(change_type, file_path)
+                insert_event(event)
+                alert_if_critical(event, cfg.alert.dingtalk_webhook)
 
         if report["summary"]["total_issues"] > 0:
             sys.exit(1)

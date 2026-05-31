@@ -21,6 +21,11 @@ class SSHConfig:
     window_seconds: int = 60
     threshold: int = 5
 
+@dataclass
+class AlertConfig:
+    """告警渠道设置"""
+    dingtalk_webhook: str = ""
+
 
 @dataclass
 class Config:
@@ -28,6 +33,7 @@ class Config:
     paths: List[str] = field(default_factory=list)
     scan_interval: int = 60
     ssh: SSHConfig = field(default_factory=SSHConfig)
+    alert: AlertConfig = field(default_factory=AlertConfig)
 
 
 def load_config(path: str | Path = DEFAULT_CONFIG_PATH) -> Config:
@@ -64,6 +70,9 @@ def load_config(path: str | Path = DEFAULT_CONFIG_PATH) -> Config:
 
     # 第 5 步：把 ssh 子字典转成 SSHConfig 实例
     # （YAML 加载出来的 ssh 字段是普通 dict，需要手动构造成 dataclass）
+    alert_data = data.pop("alert", {})
+    data["alert"] = AlertConfig(**alert_data)
+
     ssh_data = data.pop("ssh", {})
     data["ssh"] = SSHConfig(**ssh_data)
 
@@ -82,3 +91,4 @@ if __name__ == "__main__":
     print(f"  log_path:       {cfg.ssh.log_path}")
     print(f"  window_seconds: {cfg.ssh.window_seconds}")
     print(f"  threshold:      {cfg.ssh.threshold}")
+    print(f"告警webhook:       {cfg.alert.dingtalk_webhook or '(未配置)'}" )
