@@ -33,3 +33,8 @@ def send_dingtalk(text: str, webhook_url: str) -> None:
     )
     urllib.request.urlopen(request, timeout=5)
     logger.info("已发送钉钉告警到 %s", webhook_url)
+
+def alert_if_critical(event: Event, webhook_url: str) -> None:
+    """"仅当critical事件且配置webhook的时候，才发送告警"""
+    if event.severity == "critical" and webhook_url:
+        send_dingtalk(format_alert(event), webhook_url)

@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 from pyhids.store import Event
 from pyhids.alert import format_alert, send_dingtalk
+from pyhids.alert import alert_if_critical
 
 def test_format_alert_contains_key_fields():
     event = Event(
@@ -37,3 +38,45 @@ def test_send_dingtalk_posts_correct_payload():
         body = json.loads(request.data.decode("utf-8"))
         assert body["msgtype"] == "text"
         assert body["text"]["content"] == "hello PyHIDS"
+
+@patch("pyhids.alert.send_dingtalk")
+def test_alert_if_critical_sends_for_critical(mock_send):
+    event = Event(
+        detected_at = datetime(2026, 5, 21, 20, 30, 0),
+        source = "ssh_brute_force",
+        severity = "critical",
+        summary="1.2.3.4 暴力破解嫌疑",
+        payload = {"ip": "1.2.3.4"},
+    )
+
+    alert_if_critical(event, "https://example.com/robot")
+
+    mock_send.assert_called_once()
+
+@patch("pyhids.alert.send_dingtalk")
+def test_alert_if_critical_skips_warning(mock_send):
+    event = Event(
+        detected_at=datetime(2026, 5, 21, 20, 30, 0),
+        source="ssh_brute_force",
+        severity="warning",
+        summary="1.2.3.4 暴力破解嫌疑",
+        payload={"ip": "1.2.3.4"},
+    )
+
+    alert_if_critical(event, "https://example.com/robot")
+
+    mock_send.assert_not_called()
+
+@patch("pyhids.alert.send_dingtalk")
+def test_alert_if_critical_skips_when_no_webhook(mock_send):
+    event = Event(
+        detected_at=datetime(2026, 5, 21, 20, 30, 0),
+        source="ssh_brute_force",
+        severity="critical",
+        summary="1.2.3.4 暴力破解嫌疑",
+        payload={"ip": "1.2.3.4"},
+    )
+
+    alert_if_critical(event, "")
+
+    mock_send.assert_not_called()
