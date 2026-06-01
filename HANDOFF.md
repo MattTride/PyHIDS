@@ -45,12 +45,14 @@
 | **M2.2.6** store 测试 | store.py 的 pytest（5 个） | ✅ 完成 |
 | **M2.2.7** 工厂函数测试 | checker + ssh_check 工厂函数测试（4 个） | ✅ 完成 |
 | **M2 技术债清理** | 修 strptime / window_start，删 exclude 死字段，补 .gitignore | ✅ 完成 |
+| **M3.1-3.2** 告警基础 | `format_alert` 纯函数 + 钉钉 webhook 发送（`alert.py`） | ✅ 完成 |
+| **M3.3** 告警接线 | `alert_if_critical` 闸门 + 配置 + CLI 挂载 + 失败不中断 | ✅ 完成 |
 
 ### 测试套件现状
 
 ```
 $ pytest -v
-29 passed in 0.07s
+35 passed in 0.09s
 ```
 
 | 测试文件 | 测试数 |
@@ -60,6 +62,7 @@ $ pytest -v
 | `tests/test_load_baseline.py` | 2 |
 | `tests/test_ssh_check.py` | 13 |
 | `tests/test_store.py` | 5 |
+| `tests/test_alert.py` | 6 |
 
 ---
 
@@ -67,10 +70,15 @@ $ pytest -v
 
 ### 🔴 立即（下一步）
 
-**M2 已全部完成**：store / 工厂函数测试齐全（共 29 个测试），技术债已清。
-下一个里程碑是 **M3 告警**（见下表）。建议新建 `pyhids/alert.py`，在 CLI 检测到
-**新增的 critical 事件**时触发邮件 / 钉钉 webhook 通知。先写"格式化一条告警文本"
-的纯函数 + 测试，再接 SMTP / HTTP 发送，最后在 `cli.py` 的 check / ssh-check 后挂上。
+**M2、M3 均已完成**（共 35 个测试全绿）。M3 告警已上线：critical 事件经
+`alert_if_critical` 闸门触发钉钉 webhook（配置见 `watchlist.yaml` 的
+`alert.dingtalk_webhook`，留空即关闭；告警失败只记日志、不中断检测）。
+
+下一个里程碑可选 **M4 Web 仪表盘**（见下表），或先补 M3 的两个增强：
+
+- **去重**：目前每次 check 都会对"同一个持续异常"重复告警；应只对**新增**的
+  critical 事件告警（需基于 DB 去重 / 记录已告警状态）。
+- **邮件渠道**：当前只做了钉钉，可加 SMTP。
 
 ### 🟡 M2 里程碑收尾后
 
@@ -78,7 +86,7 @@ $ pytest -v
 
 | 里程碑 | 内容 | 备注 |
 |---|---|---|
-| **M3 告警** | Email + DingTalk webhook 通知 | 触发条件：新增的 critical event。可以新建 `pyhids/alert.py` |
+| **M3 告警** ✅ | 钉钉 webhook 通知（已完成；邮件待加） | 触发：critical event；去重「仅新增」待做 |
 | **M4 Web 仪表盘** | 实时事件流的网页 | 可以用 FastAPI + Server-Sent Events，复用现有 store.py 的查询接口 |
 | **M5 Docker** | 容器化部署 | 需要先把 `requirements.txt` 锁完整、配置改成挂卷 |
 
@@ -373,6 +381,8 @@ EOF
 | **边界条件 `>` vs `>=`** | `len(in_window) > threshold` 让"恰好达阈值"被放过，阈值悄悄 +1 | "达到即触发"用 `>=`；写之前把语义念一遍 |
 | **改骨架漏改条件** | 把 `> 0` 改成阈值时只换了数字成 `> threshold`，漏了 `>`→`>=` | 改一处时把整行语义都过一遍，别只盯着改动的那个字 |
 | **改错文件** | 把 test_checker 的测试敲进了 test_store.py | 动手前确认 PyCharm 当前标签页就是目标文件 |
+| **`@patch` 装饰器与注入参数成对** | 写了 `mock_send` 参数却漏了 `@patch(...)` → pytest 报 `fixture 'mock_send' not found` | 有 mock 参数就必有对应的 `@patch` 装饰器 |
+| **mock `side_effect` 模拟失败** | 想测"发送失败被吞掉"，需让替身主动抛错 | `mock.side_effect = RuntimeError(...)`，再断言主流程不崩 |
 
 ---
 
