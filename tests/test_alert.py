@@ -80,3 +80,18 @@ def test_alert_if_critical_skips_when_no_webhook(mock_send):
     alert_if_critical(event, "")
 
     mock_send.assert_not_called()
+
+@patch("pyhids.alert.send_dingtalk")
+def test_alert_alert_if_critical_swallows_send_errors(mock_send):
+    mock_send.side_effect = Exception("network down")
+    event = Event(
+        detected_at=datetime(2026, 5, 21, 20, 30, 0),
+        source="ssh_brute_force",
+        severity="critical",
+        summary="1.2.3.4 暴力破解嫌疑",
+        payload={"ip": "1.2.3.4"},
+    )
+
+    alert_if_critical(event, "https://example.com/robot")
+
+    mock_send.assert_called_once()
