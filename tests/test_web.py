@@ -25,3 +25,9 @@ def test_api_events_returns_json(monkeypatch):
     assert data[0]["source"] == "ssh_brute_force"
     assert data[0]["detected_at"] == "2026-05-21T20:30:00"
     assert data[0]["summary"] == "1.2.3.4 暴力破解嫌疑"
+
+def test_dashboard_page_is_served():
+    response = client.get("/")
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    assert "PyHIDS" in response.text
