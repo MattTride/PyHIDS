@@ -47,12 +47,13 @@
 | **M2 技术债清理** | 修 strptime / window_start，删 exclude 死字段，补 .gitignore | ✅ 完成 |
 | **M3.1-3.2** 告警基础 | `format_alert` 纯函数 + 钉钉 webhook 发送（`alert.py`） | ✅ 完成 |
 | **M3.3** 告警接线 | `alert_if_critical` 闸门 + 配置 + CLI 挂载 + 失败不中断 | ✅ 完成 |
+| **M4.1-4.4** Web 仪表盘 | FastAPI `/api/events` + HTML 页面 + 5s 自动刷新 + `pyhids serve` | ✅ 完成 |
 
 ### 测试套件现状
 
 ```
 $ pytest -v
-35 passed in 0.09s
+37 passed in 0.28s
 ```
 
 | 测试文件 | 测试数 |
@@ -63,6 +64,7 @@ $ pytest -v
 | `tests/test_ssh_check.py` | 13 |
 | `tests/test_store.py` | 5 |
 | `tests/test_alert.py` | 6 |
+| `tests/test_web.py` | 2 |
 
 ---
 
@@ -70,15 +72,15 @@ $ pytest -v
 
 ### 🔴 立即（下一步）
 
-**M2、M3 均已完成**（共 35 个测试全绿）。M3 告警已上线：critical 事件经
-`alert_if_critical` 闸门触发钉钉 webhook（配置见 `watchlist.yaml` 的
-`alert.dingtalk_webhook`，留空即关闭；告警失败只记日志、不中断检测）。
+**M2、M3、M4 均已完成**（共 37 个测试全绿）。仪表盘已上线：`pyhids serve` 启动
+FastAPI（`/` 表格页 + `/api/events` JSON），每 5 秒自动刷新，复用 `store.query_events`。
 
-下一个里程碑可选 **M4 Web 仪表盘**（见下表），或先补 M3 的两个增强：
+下一个里程碑可选 **M5 Docker**（见下表），或先补这几个增强：
 
-- **去重**：目前每次 check 都会对"同一个持续异常"重复告警；应只对**新增**的
+- **告警去重**：目前每次 check / ssh-check 都会对"同一个持续异常"重复告警；应只对**新增**的
   critical 事件告警（需基于 DB 去重 / 记录已告警状态）。
 - **邮件渠道**：当前只做了钉钉，可加 SMTP。
+- **仪表盘增强**：分页 / 按 source、severity 过滤 / 用 SSE 真推送替代 5s 轮询。
 
 ### 🟡 M2 里程碑收尾后
 
@@ -87,7 +89,7 @@ $ pytest -v
 | 里程碑 | 内容 | 备注 |
 |---|---|---|
 | **M3 告警** ✅ | 钉钉 webhook 通知（已完成；邮件待加） | 触发：critical event；去重「仅新增」待做 |
-| **M4 Web 仪表盘** | 实时事件流的网页 | 可以用 FastAPI + Server-Sent Events，复用现有 store.py 的查询接口 |
+| **M4 Web 仪表盘** ✅ | FastAPI `/api/events` + HTML + 5s 轮询；`pyhids serve` 启动 | 已完成。SSE 真推送 / 过滤 / 分页待做 |
 | **M5 Docker** | 容器化部署 | 需要先把 `requirements.txt` 锁完整、配置改成挂卷 |
 
 ### 🟢 技术债 / 优化点
@@ -116,19 +118,24 @@ $ pytest -v
 /Users/Tride/PyHIDS/
 ├── pyhids/                       ← Python 包，所有源代码
 │   ├── __init__.py
+│   ├── alert.py                  # 告警：format_alert / send_dingtalk / alert_if_critical
 │   ├── baseline.py               # 文件指纹基线生成与持久化
 │   ├── checker.py                # 文件完整性检测 + Event 工厂
-│   ├── cli.py                    # argparse 入口（4 个子命令）
+│   ├── cli.py                    # argparse 入口（5 个子命令：baseline/check/ssh-check/events/serve）
 │   ├── config.py                 # YAML 配置加载（Config / SSHConfig dataclass）
 │   ├── hasher.py                 # 文件 SHA-256 计算
 │   ├── log.py                    # logging 中央配置
 │   ├── ssh_check.py              # SSH 暴破检测 + Event 工厂
-│   └── store.py                  # SQLite 事件持久化（Event / insert / query）
+│   ├── store.py                  # SQLite 事件持久化（Event / insert / query）
+│   └── web.py                    # FastAPI 仪表盘（/api/events + HTML + 自动刷新）
 ├── tests/                        ← pytest 测试套件
 │   ├── test_hasher.py            (4 个测试)
-│   ├── test_checker.py           (3 个测试)
+│   ├── test_checker.py           (5 个测试)
 │   ├── test_load_baseline.py     (2 个测试)
-│   └── test_ssh_check.py         (11 个测试)
+│   ├── test_ssh_check.py         (13 个测试)
+│   ├── test_store.py             (5 个测试)
+│   ├── test_alert.py             (6 个测试)
+│   └── test_web.py               (2 个测试)
 ├── config/
 │   └── watchlist.yaml            # 用户配置（监控路径、SSH 阈值等）
 ├── data/                         ← 运行时数据（基线 + DB），部分入库
@@ -138,7 +145,7 @@ $ pytest -v
 │   ├── auth.log                  (合成的 sshd 日志，含 1.2.3.4 暴破场景)
 │   ├── etc/{hosts,passwd}
 │   └── home/authorized_keys
-├── requirements.txt              # 依赖：PyYAML 6.0.3 + watchdog 6.0.0 + pytest 9.0.3
+├── requirements.txt              # 依赖：PyYAML + watchdog + pytest + fastapi + uvicorn + httpx
 ├── .gitignore                    # Python 标准模板 + `!demo_files/*.log` 反向白名单
 ├── README.md                     # 项目介绍 + roadmap
 ├── HANDOFF.md                    # 本文件
@@ -383,6 +390,10 @@ EOF
 | **改错文件** | 把 test_checker 的测试敲进了 test_store.py | 动手前确认 PyCharm 当前标签页就是目标文件 |
 | **`@patch` 装饰器与注入参数成对** | 写了 `mock_send` 参数却漏了 `@patch(...)` → pytest 报 `fixture 'mock_send' not found` | 有 mock 参数就必有对应的 `@patch` 装饰器 |
 | **mock `side_effect` 模拟失败** | 想测"发送失败被吞掉"，需让替身主动抛错 | `mock.side_effect = RuntimeError(...)`，再断言主流程不崩 |
+| **导入位置错** | `from fastapi import TestClient` → NameError；它在子模块 `fastapi.testclient` | 子模块里的东西要从子模块导：`from fastapi.testclient import TestClient` |
+| **方法忘加 `()`** | `data = response.json`（没调用）→ `'method' object is not subscriptable` | `json` 是函数本身，`json()` 才是它的返回值 |
+| **字典键值搭错** | `"severity": e.summary`（值放错）、还漏了 summary 键 | 只能靠测试抓；断言报错会直接显示"严重等级里装了摘要" |
+| **验证要够"真"才算数** | M3.3c ssh-check 漏接告警，因 webhook 为空、跑起来看不出，蒙混过提交 | 验证条件要能真正暴露 bug；旁路功能尤其要构造"会触发"的场景，改完先读文件审一遍再跑 |
 
 ---
 
