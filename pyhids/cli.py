@@ -47,6 +47,10 @@ def main() -> None:
     parser_events = subparsers.add_parser("events", help="查询历史事件")
     parser_events.add_argument("--limit", type=int, default=50, help="最多显示条数（默认 50）")
     parser_events.add_argument("--source", type=str, default=None,help="按事件源过滤（file_integrity / ssh_brute_force）")
+    # ================== 窗口 E：serve 业务 ==================
+    parser_serve = subparsers.add_parser("serve", help="启动 Web 仪表盘")
+    parser_serve.add_argument("--host", type=str, default="127.0.0.1", help="监听地址（默认 127.0.0.1）")
+    parser_serve.add_argument("--port", type=int, default=8000, help="监听端口（默认 8000）")
 
     args = parser.parse_args()
     setup_logging(args.log_level)
@@ -121,6 +125,11 @@ def main() -> None:
     elif args.command == "events":
         events = query_events(limit=args.limit, source=args.source)
         print_events_table(events)
+
+    elif args.command == "serve":
+        import uvicorn
+        print(f"启动仪表盘 http://{args.host}:{args.port} （Ctrl+C 退出）")
+        uvicorn.run("pyhids.web:app", host=args.host, port=args.port)
 
 if __name__ == "__main__":
     main()
