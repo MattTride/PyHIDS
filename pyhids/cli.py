@@ -115,9 +115,11 @@ def main() -> None:
 
         print_ssh_report(report)
 
-        # 把每个暴破嫌疑落库
+        # 把每个暴破嫌疑落库，并触发告警
         for attempt in report["attempts"]:
-            insert_event(event_from_brute_force(attempt))
+            event = event_from_brute_force(attempt)
+            insert_event(event)
+            alert_if_critical(event, cfg.alert.dingtalk_webhook)
 
         if report["summary"]["total_attempts"] > 0:
             sys.exit(1)
