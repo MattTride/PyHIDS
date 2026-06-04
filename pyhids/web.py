@@ -44,6 +44,7 @@ DASHBOARD_HTML = """
       }
     }
     load();
+    setInterval(load, 5000);
   </script>
 </body>
 </html>
