@@ -136,4 +136,9 @@ def print_events_table(events: list[Event]) -> None:
 
     print(f"\n共 {len(events)} 条事件")
 
+def dedup_key(event: Event) -> str:
+    """事件的稳定指纹，用来去重"""
+    if event.source == "ssh_brute_force":
+        return f"ssh_brute_force:{event.payload['ip']}"
+    return f"{event.source}:{event.summary}"
 

@@ -3,6 +3,7 @@ import sqlite3
 from datetime import datetime
 from pyhids.store import init_db
 from pyhids.store import Event, insert_event, query_events
+from pyhids.store import dedup_key
 
 def test_init_db_creates_database_file_and_is_idempotent(tmp_path):
     db_path = tmp_path / "nested" / "events.db"
@@ -123,3 +124,43 @@ def test_query_events_deserializes_types(tmp_path):
     assert event.detected_at == datetime(2026, 5, 21, 20, 30, 0)
     assert isinstance(event.payload, dict)
     assert event.payload == {"ip": "1.2.3.4", "count": 5}
+
+def test_dedup_key_ssh_uses_ip():
+    ev = Event(
+        detected_at=datetime(2026, 5, 21, 20, 30, 0),
+        source="ssh_brute_force",
+        severity="critical",
+        summary="1.2.3.4 暴破嫌疑 (5次 / 窗口)",
+        payload={"ip": "1.2.3.4", "fail_count": 5},
+    )
+    assert dedup_key(ev) == "ssh_brute_force:1.2.3.4"
+
+def test_dedup_key_file_users_source_and_summary():
+    ev = Event(
+        detected_at=datetime(2026, 5, 21, 20, 30, 0),
+        source="file_integrity",
+        severity="critical",
+        summary="/etc/passwd modified",
+        payload={"file_path": "/etc/passwd", "change":"modified"}
+    )
+    assert dedup_key(ev) == "file_integrity:/etc/passwd modified"
+
+def test_dedup_key_ssh_stable_despite_changing_window():
+    ev1 = Event(
+        detected_at=datetime(2026, 5, 21, 20, 30, 0),
+        source="ssh_brute_force",
+        severity="critical",
+        summary="1.2.3.4 暴破嫌疑 (3次 / 窗口)",
+        payload={"ip": "1.2.3.4", "fail_count": 5},
+    )
+    assert dedup_key(ev1) == "ssh_brute_force:1.2.3.4"
+
+    ev2 = Event(
+        detected_at=datetime(2026, 5, 21, 20, 30, 0),
+        source="ssh_brute_force",
+        severity="critical",
+        summary="1.2.3.4 暴力破解 (6次 / 窗口)",
+        payload={"ip": "1.2.3.4", "fail_count": 6},
+    )
+    assert dedup_key(ev2) == "ssh_brute_force:1.2.3.4"
+    assert dedup_key(ev1) == dedup_key(ev2)
