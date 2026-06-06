@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import sys
 
+from datetime import datetime, timedelta
 from pyhids.store import query_events, print_events_table, init_db, insert_event
 from pyhids.log import setup_logging
 from pyhids.baseline import build_baseline, save_baseline
@@ -15,6 +16,8 @@ from pyhids.config import load_config
 from pyhids.checker import check, output_report, event_from_file_change
 from pyhids.ssh_check import check_ssh, print_ssh_report, event_from_brute_force
 from pyhids.alert import alert_if_critical
+from pyhids.store import dedup_key, dedup_keys_since
+
 
 
 def main() -> None:
@@ -89,12 +92,16 @@ def main() -> None:
 
         output_report(report)
 
-        # 把每个 FIM 变化落库
+        # 把每个 FIM 变化落库；告警前先按窗口去重
+        cutoff = datetime.now() - timedelta(seconds=cfg.alert.dedup_window_seconds)
+        seen = dedup_keys_since(cutoff)
         for change_type in ("modified", "deleted", "added"):
             for file_path in report[change_type]:
                 event = event_from_file_change(change_type, file_path)
                 insert_event(event)
-                alert_if_critical(event, cfg.alert.dingtalk_webhook)
+                if dedup_key(event) not in seen:
+                    alert_if_critical(event, cfg.alert.dingtalk_webhook)
+
 
         if report["summary"]["total_issues"] > 0:
             sys.exit(1)
@@ -116,10 +123,13 @@ def main() -> None:
         print_ssh_report(report)
 
         # 把每个暴破嫌疑落库，并触发告警
+        cutoff = datetime.now() - timedelta(seconds=cfg.alert.dedup_window_seconds)
+        seen = dedup_keys_since(cutoff)
         for attempt in report["attempts"]:
             event = event_from_brute_force(attempt)
             insert_event(event)
-            alert_if_critical(event, cfg.alert.dingtalk_webhook)
+            if dedup_key(event) not in seen:
+                alert_if_critical(event, cfg.alert.dingtalk_webhook)
 
         if report["summary"]["total_attempts"] > 0:
             sys.exit(1)

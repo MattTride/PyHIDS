@@ -25,6 +25,7 @@ class SSHConfig:
 class AlertConfig:
     """告警渠道设置"""
     dingtalk_webhook: str = ""
+    dedup_window_seconds: int = 3600
 
 
 @dataclass

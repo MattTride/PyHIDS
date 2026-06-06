@@ -14,3 +14,4 @@ ssh:
 
 alert:
   dingtalk_webhook: ""
+  dedup_window_seconds: 3600
