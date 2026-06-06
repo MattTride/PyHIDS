@@ -10,6 +10,8 @@ from pathlib import Path
 from dataclasses import dataclass
 from datetime import datetime
 
+from pygments.util import split_path_re
+
 
 @dataclass
 class Event:
@@ -142,3 +144,23 @@ def dedup_key(event: Event) -> str:
         return f"ssh_brute_force:{event.payload['ip']}"
     return f"{event.source}:{event.summary}"
 
+def dedup_keys_since(since: datetime, db_path: Path = DEFAULT_DB_PATH) -> set[str]:
+    """返回detected_at >= since的所有事件去重指纹集合"""
+    conn = sqlite3.connect(db_path)
+    rows = conn.execute(
+        "SELECT detected_at, source, severity, summary, payload FROM events WHERE detected_at >= ?",
+        (since.isoformat(),),
+    ).fetchall()
+    conn.close()
+
+    events = [
+        Event(
+            detected_at=datetime.fromisoformat(r[0]),
+            source=r[1],
+            severity=r[2],
+            summary=r[3],
+            payload=json.loads(r[4]),
+        )
+        for r in rows
+    ]
+    return {dedup_key(e) for e in events}

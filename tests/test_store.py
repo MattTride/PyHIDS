@@ -4,6 +4,7 @@ from datetime import datetime
 from pyhids.store import init_db
 from pyhids.store import Event, insert_event, query_events
 from pyhids.store import dedup_key
+from pyhids.store import dedup_keys_since
 
 def test_init_db_creates_database_file_and_is_idempotent(tmp_path):
     db_path = tmp_path / "nested" / "events.db"
@@ -164,3 +165,42 @@ def test_dedup_key_ssh_stable_despite_changing_window():
     )
     assert dedup_key(ev2) == "ssh_brute_force:1.2.3.4"
     assert dedup_key(ev1) == dedup_key(ev2)
+
+def test_dedup_keys_since_filter_by_time(tmp_path):
+    db_path = tmp_path / "events.db"
+    init_db(db_path)
+
+    old = Event(
+        detected_at=datetime(2026, 1, 1, 0, 0, 0),
+        source="ssh_brute_force", severity="critical",
+        summary="old attack", payload={"ip": "9.9.9.9"},
+    )
+    new = Event(
+        detected_at=datetime(2026, 5, 21, 20, 30, 0),
+        source="ssh_brute_force", severity="critical",
+        summary="new attack", payload={"ip": "1.2.3.4"},
+    )
+    insert_event(old, db_path)
+    insert_event(new, db_path)
+
+    # 截止时间卡在 old(1月) 和 new(5月) 之间
+    keys = dedup_keys_since(datetime(2026, 5, 1, 0, 0, 0), db_path=db_path)
+
+    assert keys == {"ssh_brute_force:1.2.3.4"}   # 只剩 new，old 在窗口外被排除
+
+
+def test_dedup_keys_since_empty_when_nothing_recent(tmp_path):
+    db_path = tmp_path / "events.db"
+    init_db(db_path)
+
+    old = Event(
+        detected_at=datetime(2026, 1, 1, 0, 0, 0),
+        source="ssh_brute_force", severity="critical",
+        summary="old attack", payload={"ip": "9.9.9.9"},
+    )
+    insert_event(old, db_path)
+
+
+    keys = dedup_keys_since(datetime(2026, 6, 1, 0, 0, 0), db_path=db_path)
+
+    assert keys == set()
