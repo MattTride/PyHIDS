@@ -48,12 +48,13 @@
 | **M3.1-3.2** 告警基础 | `format_alert` 纯函数 + 钉钉 webhook 发送（`alert.py`） | ✅ 完成 |
 | **M3.3** 告警接线 | `alert_if_critical` 闸门 + 配置 + CLI 挂载 + 失败不中断 | ✅ 完成 |
 | **M4.1-4.4** Web 仪表盘 | FastAPI `/api/events` + HTML 页面 + 5s 自动刷新 + `pyhids serve` | ✅ 完成 |
+| **M3.4** 告警去重 | `dedup_key` 指纹 + 时间窗查询 + CLI 闸门（窗口内不重复告警） | ✅ 完成 |
 
 ### 测试套件现状
 
 ```
 $ pytest -v
-37 passed in 0.28s
+42 passed in 0.26s
 ```
 
 | 测试文件 | 测试数 |
@@ -62,7 +63,7 @@ $ pytest -v
 | `tests/test_checker.py` | 5 |
 | `tests/test_load_baseline.py` | 2 |
 | `tests/test_ssh_check.py` | 13 |
-| `tests/test_store.py` | 5 |
+| `tests/test_store.py` | 10 |
 | `tests/test_alert.py` | 6 |
 | `tests/test_web.py` | 2 |
 
@@ -72,15 +73,16 @@ $ pytest -v
 
 ### 🔴 立即（下一步）
 
-**M2、M3、M4 均已完成**（共 37 个测试全绿）。仪表盘已上线：`pyhids serve` 启动
-FastAPI（`/` 表格页 + `/api/events` JSON），每 5 秒自动刷新，复用 `store.query_events`。
+**M2、M3、M4 + 告警去重(M3.4) 均已完成**（共 42 个测试全绿）。告警去重已上线：
+check/ssh-check 在 `alert.dedup_window_seconds`（默认 3600s）窗口内对同一指纹不重复告警
+（仍照常落库；超窗口可再报，不漏二次攻击）。
 
 下一个里程碑可选 **M5 Docker**（见下表），或先补这几个增强：
 
-- **告警去重**：目前每次 check / ssh-check 都会对"同一个持续异常"重复告警；应只对**新增**的
-  critical 事件告警（需基于 DB 去重 / 记录已告警状态）。
 - **邮件渠道**：当前只做了钉钉，可加 SMTP。
 - **仪表盘增强**：分页 / 按 source、severity 过滤 / 用 SSE 真推送替代 5s 轮询。
+- **存储去重（可选）**：目前每次检测都落一行，仪表盘会看到重复行；如需"每个问题一行"
+  可在落库层也去重（注意会丢"上次见到"的信息）。
 
 ### 🟡 M2 里程碑收尾后
 
@@ -88,7 +90,7 @@ FastAPI（`/` 表格页 + `/api/events` JSON），每 5 秒自动刷新，复用
 
 | 里程碑 | 内容 | 备注 |
 |---|---|---|
-| **M3 告警** ✅ | 钉钉 webhook 通知（已完成；邮件待加） | 触发：critical event；去重「仅新增」待做 |
+| **M3 告警** ✅ | 钉钉 webhook + 窗口去重（已完成；邮件待加） | 去重已做（M3.4，按时间窗）；邮件待加 |
 | **M4 Web 仪表盘** ✅ | FastAPI `/api/events` + HTML + 5s 轮询；`pyhids serve` 启动 | 已完成。SSE 真推送 / 过滤 / 分页待做 |
 | **M5 Docker** | 容器化部署 | 需要先把 `requirements.txt` 锁完整、配置改成挂卷 |
 
