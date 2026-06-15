@@ -15,3 +15,9 @@ ssh:
 alert:
   dingtalk_webhook: ""
   dedup_window_seconds: 3600
+  email_host: ""
+  email_port: 587
+  email_user: ""
+  email_password: ""
+  email_from: ""
+  email_to: ""

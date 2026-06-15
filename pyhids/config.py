@@ -26,6 +26,12 @@ class AlertConfig:
     """告警渠道设置"""
     dingtalk_webhook: str = ""
     dedup_window_seconds: int = 3600
+    email_host: str = ""
+    email_port: int = 587
+    email_user: str = ""
+    email_password: str = ""
+    email_from: str = ""
+    email_to: str = ""
 
 
 @dataclass
