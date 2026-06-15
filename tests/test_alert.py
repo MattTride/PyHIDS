@@ -5,6 +5,7 @@ from unittest.mock import patch
 from pyhids.store import Event
 from pyhids.alert import format_alert, send_dingtalk
 from pyhids.alert import alert_if_critical
+from pyhids.alert import send_email
 
 def test_format_alert_contains_key_fields():
     event = Event(
@@ -95,3 +96,12 @@ def test_alert_alert_if_critical_swallows_send_errors(mock_send):
     alert_if_critical(event, "https://example.com/robot")
 
     mock_send.assert_called_once()
+
+@patch("pyhids.alert.smtplib.SMTP")
+def test_send_email_sends_via_smtp(mock_smtp):
+    send_email("hello", "smtp.example.com", 587, "user", "pass", "from@x.com", "to@y.com")
+
+    smtp = mock_smtp.return_value
+    smtp.starttls.assert_called_once()
+    smtp.login.assert_called_once_with("user", "pass")
+    smtp.send_message.assert_called_once()

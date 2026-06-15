@@ -4,7 +4,9 @@ pyhids.alert - 把检测到的事件格式化成告警，并发送出去。
 
 from __future__ import annotations
 from pyhids.store import Event
+from email.message import EmailMessage
 
+import smtplib
 import logging
 import json
 import urllib.request
@@ -41,3 +43,25 @@ def alert_if_critical(event: Event, webhook_url: str) -> None:
             send_dingtalk(format_alert(event), webhook_url)
         except Exception as e:
             logger.warning("发送告警失败(已忽略，不影响检测) : %s", e)
+
+def send_email(
+        text: str,
+        host: str,
+        port: int,
+        username: str,
+        password: str,
+        from_addr: str,
+        to_addr: str,
+) -> None:
+    """通过SMTP发送一封纯文件告警文件"""
+    msg = EmailMessage()
+    msg["Subject"] = "PyHIDS告警"
+    msg["From"] = from_addr
+    msg["To"] = to_addr
+    msg.set_content(text)
+
+    smtp = smtplib.SMTP(host, port, timeout=10)
+    smtp.starttls()
+    smtp.login(username, password)
+    smtp.send_message(msg)
+    smtp.quit()
