@@ -50,12 +50,13 @@
 | **M4.1-4.4** Web 仪表盘 | FastAPI `/api/events` + HTML 页面 + 5s 自动刷新 + `pyhids serve` | ✅ 完成 |
 | **M3.4** 告警去重 | `dedup_key` 指纹 + 时间窗查询 + CLI 闸门（窗口内不重复告警） | ✅ 完成 |
 | **M3.5** 邮件渠道 | `send_email`(SMTP) + 配置字段 + `alert_if_critical` 多渠道分发 | ✅ 完成 |
+| **M4.5** 仪表盘过滤 | query_events 动态 WHERE(source/severity)+ /api/events 透传 + 前端下拉框 | ✅ 完成 |
 
 ### 测试套件现状
 
 ```
 $ pytest -v
-44 passed in 0.28s
+46 passed in 0.28s
 ```
 
 | 测试文件 | 测试数 |
@@ -64,9 +65,9 @@ $ pytest -v
 | `tests/test_checker.py` | 5 |
 | `tests/test_load_baseline.py` | 2 |
 | `tests/test_ssh_check.py` | 13 |
-| `tests/test_store.py` | 10 |
+| `tests/test_store.py` | 11 |
 | `tests/test_alert.py` | 8 |
-| `tests/test_web.py` | 2 |
+| `tests/test_web.py` | 3 |
 
 ---
 
@@ -74,13 +75,12 @@ $ pytest -v
 
 ### 🔴 立即（下一步）
 
-**M2、M3（含告警去重 M3.4 + 邮件 M3.5）、M4 均已完成**（共 44 个测试全绿）。告警现支持
-钉钉 + 邮件双渠道分发，并在 `alert.dedup_window_seconds`（默认 3600s）窗口内对同一指纹
-去重（超窗口可再报，不漏二次攻击）。
+**M2、M3、M4（含仪表盘过滤 M4.5）均已完成**（共 46 个测试全绿）。仪表盘现可按
+source/severity 过滤；告警支持钉钉+邮件双渠道、按时间窗去重。
 
 下一个里程碑可选 **M5 Docker**（见下表），或先补这几个增强：
 
-- **仪表盘增强**：分页 / 按 source、severity 过滤 / 用 SSE 真推送替代 5s 轮询。
+- **仪表盘**：分页（limit/offset 已有 limit，补 offset + 上/下页）/ 用 SSE 真推送替代 5s 轮询。
 - **存储去重（可选）**：目前每次检测都落一行，仪表盘会看到重复行；如需"每个问题一行"
   可在落库层也去重（注意会丢"上次见到"的信息）。
 
@@ -91,7 +91,7 @@ $ pytest -v
 | 里程碑 | 内容 | 备注 |
 |---|---|---|
 | **M3 告警** ✅ | 钉钉 + 邮件双渠道 + 窗口去重（全部完成） | 去重 M3.4、邮件 M3.5 均已做 |
-| **M4 Web 仪表盘** ✅ | FastAPI `/api/events` + HTML + 5s 轮询；`pyhids serve` 启动 | 已完成。SSE 真推送 / 过滤 / 分页待做 |
+| **M4 Web 仪表盘** ✅ | FastAPI `/api/events` + HTML + 5s 轮询；`pyhids serve`；source/severity 过滤(M4.5) | 已完成。SSE 真推送 / 分页待做 |
 | **M5 Docker** | 容器化部署 | 需要先把 `requirements.txt` 锁完整、配置改成挂卷 |
 
 ### 🟢 技术债 / 优化点
