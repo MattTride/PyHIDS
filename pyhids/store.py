@@ -78,37 +78,30 @@ def insert_event(event: Event, db_path: Path = DEFAULT_DB_PATH) -> int:
 def query_events(
         limit: int = 50,
         source: str | None = None,
+        severity: str | None = None,
         db_path: Path = DEFAULT_DB_PATH,
 ) -> list[Event]:
-    """
-    查询最近的事件，按时间倒序。
-
-    Args:
-        limit: 最多返回多少条
-        source: 可选，按 source 字段过滤（None 表示不过滤）
-
-    Returns:
-        Event 列表，最新的在前
-    """
+    """查询最近的事件，按时间倒序。source / severity 可选过滤（None=不过滤）。"""
     conn = sqlite3.connect(db_path)
 
+    clauses = []
+    params = []
     if source is not None:
-        SQL = """
-            SELECT detected_at, source, severity, summary, payload
-            FROM events
-            WHERE source = ?
-            ORDER BY detected_at DESC
-            LIMIT ?
-        """
-        params = (source, limit)
-    else:
-        SQL = """
-            SELECT detected_at, source, severity, summary, payload
-            FROM events
-            ORDER BY detected_at DESC
-            LIMIT ?
-        """
-        params = (limit,)
+        clauses.append("source = ?")
+        params.append(source)
+    if severity is not None:
+        clauses.append("severity = ?")
+        params.append(severity)
+
+    where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+    SQL = f"""
+        SELECT detected_at, source, severity, summary, payload
+        FROM events
+        {where}
+        ORDER BY detected_at DESC
+        LIMIT ?
+    """
+    params.append(limit)
 
     cursor = conn.execute(SQL, params)
     rows = cursor.fetchall()
@@ -116,8 +109,11 @@ def query_events(
 
     events = []
     for row in rows:
-        events.append(Event(detected_at=datetime.fromisoformat(row[0]),source=row[1],severity=row[2],summary=row[3],payload=json.loads(row[4])))
-
+        events.append(Event(
+            detected_at=datetime.fromisoformat(row[0]),
+            source=row[1], severity=row[2], summary=row[3],
+            payload=json.loads(row[4]),
+        ))
     return events
 
 

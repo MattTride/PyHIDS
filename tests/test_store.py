@@ -204,3 +204,28 @@ def test_dedup_keys_since_empty_when_nothing_recent(tmp_path):
     keys = dedup_keys_since(datetime(2026, 6, 1, 0, 0, 0), db_path=db_path)
 
     assert keys == set()
+
+
+def test_query_events_filters_by_severity(tmp_path):
+    db_path = tmp_path / "events.db"
+    init_db(db_path)
+
+    insert_event(Event(
+        detected_at=datetime(2026, 1, 1, 12, 0, 0),
+        source="file_integrity",
+        severity="warning",
+        summary="fim event",
+        payload={},
+    ), db_path)
+    insert_event(Event(
+        detected_at=datetime(2026, 1, 2, 12, 0, 0),
+        source="ssh_brute_force",
+        severity="critical",
+        summary="ssh event",
+        payload={},
+    ), db_path)
+
+    events = query_events(severity="critical", db_path=db_path)
+
+    assert len(events) == 1
+    assert events[0].severity == "critical"
