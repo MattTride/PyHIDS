@@ -100,7 +100,7 @@ def main() -> None:
                 event = event_from_file_change(change_type, file_path)
                 insert_event(event)
                 if dedup_key(event) not in seen:
-                    alert_if_critical(event, cfg.alert.dingtalk_webhook)
+                    alert_if_critical(event, cfg.alert)
 
 
         if report["summary"]["total_issues"] > 0:
@@ -129,7 +129,7 @@ def main() -> None:
             event = event_from_brute_force(attempt)
             insert_event(event)
             if dedup_key(event) not in seen:
-                alert_if_critical(event, cfg.alert.dingtalk_webhook)
+                alert_if_critical(event, cfg.alert)
 
         if report["summary"]["total_attempts"] > 0:
             sys.exit(1)

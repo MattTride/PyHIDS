@@ -3,6 +3,7 @@ from datetime import datetime
 from unittest.mock import patch
 
 from pyhids.store import Event
+from pyhids.config import AlertConfig
 from pyhids.alert import format_alert, send_dingtalk
 from pyhids.alert import alert_if_critical
 from pyhids.alert import send_email
@@ -50,7 +51,7 @@ def test_alert_if_critical_sends_for_critical(mock_send):
         payload = {"ip": "1.2.3.4"},
     )
 
-    alert_if_critical(event, "https://example.com/robot")
+    alert_if_critical(event, AlertConfig(dingtalk_webhook="https://example.com/robot"))
 
     mock_send.assert_called_once()
 
@@ -64,7 +65,7 @@ def test_alert_if_critical_skips_warning(mock_send):
         payload={"ip": "1.2.3.4"},
     )
 
-    alert_if_critical(event, "https://example.com/robot")
+    alert_if_critical(event, AlertConfig(dingtalk_webhook="https://example.com/robot"))
 
     mock_send.assert_not_called()
 
@@ -78,7 +79,7 @@ def test_alert_if_critical_skips_when_no_webhook(mock_send):
         payload={"ip": "1.2.3.4"},
     )
 
-    alert_if_critical(event, "")
+    alert_if_critical(event, AlertConfig(dingtalk_webhook=""))
 
     mock_send.assert_not_called()
 
@@ -93,7 +94,7 @@ def test_alert_alert_if_critical_swallows_send_errors(mock_send):
         payload={"ip": "1.2.3.4"},
     )
 
-    alert_if_critical(event, "https://example.com/robot")
+    alert_if_critical(event, AlertConfig(dingtalk_webhook="https://example.com/robot"))
 
     mock_send.assert_called_once()
 
@@ -105,3 +106,16 @@ def test_send_email_sends_via_smtp(mock_smtp):
     smtp.starttls.assert_called_once()
     smtp.login.assert_called_once_with("user", "pass")
     smtp.send_message.assert_called_once()
+
+@patch("pyhids.alert.send_email")
+def test_alert_if_critical_sends_email_when_configured(mock_email):
+    event = Event(
+        detected_at=datetime(2026, 5, 21, 20, 30, 0),
+        source="ssh_brute_force",
+        severity="critical",
+        summary="1.2.3.4 暴力破解嫌疑",
+        payload={"ip": "1.2.3.4"},
+    )
+    cfg = AlertConfig(email_host="stmp.example.com", email_to="to@y.com")
+    alert_if_critical(event, cfg)
+    mock_email.assert_called_once()

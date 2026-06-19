@@ -5,6 +5,7 @@ pyhids.alert - 把检测到的事件格式化成告警，并发送出去。
 from __future__ import annotations
 from pyhids.store import Event
 from email.message import EmailMessage
+from pyhids.config import AlertConfig
 
 import smtplib
 import logging
@@ -36,13 +37,24 @@ def send_dingtalk(text: str, webhook_url: str) -> None:
     urllib.request.urlopen(request, timeout=5)
     logger.info("已发送钉钉告警到 %s", webhook_url)
 
-def alert_if_critical(event: Event, webhook_url: str) -> None:
-    """"仅当critical事件且配置webhook的时候，才发送告警"""
-    if event.severity == "critical" and webhook_url:
+def alert_if_critical(event: Event, alert_cfg: AlertConfig) -> None:
+    """critical 事件 → 分发到所有已配置的渠道。某渠道失败不影响其它渠道/检测。"""
+    if event.severity != "critical":
+        return
+
+    text = format_alert(event)
+
+    if alert_cfg.dingtalk_webhook:
         try:
-            send_dingtalk(format_alert(event), webhook_url)
+            send_dingtalk(format_alert(event), alert_cfg.dingtalk_webhook)
         except Exception as e:
             logger.warning("发送告警失败(已忽略，不影响检测) : %s", e)
+
+    if alert_cfg.email_host:
+        try:
+            send_email(text, host=alert_cfg.email_host, port=alert_cfg.email_port, username=alert_cfg.email_user, password=alert_cfg.email_password, from_addr=alert_cfg.email_from, to_addr=alert_cfg.email_to)
+        except Exception as e:
+            logger.warning("发送告警失败: %s", e)
 
 def send_email(
         text: str,
