@@ -7,7 +7,7 @@ A lightweight host-based intrusion detection system written in Python.
 - [ ✅ ] File integrity monitoring (SHA-256 baseline)
 - [ ✅ ] SSH brute-force detection via auth log parsing
 - [ ✅ ] SQLite-based event persistence
-- [ ✅ ] DingTalk webhook alerting (email TBD)
+- [ ✅ ] DingTalk + email alerting
 - [ ✅ ] Web dashboard with real-time event stream
 - [ ] Docker deployment
 
@@ -25,7 +25,7 @@ A lightweight host-based intrusion detection system written in Python.
 - [ ✅ ] 文件完整性监控（基于 SHA-256 基线）
 - [ ✅ ] 基于认证日志解析的 SSH 暴力破解检测
 - [ ✅ ] 基于 SQLite 的事件持久化存储
-- [ ✅ ] 钉钉 Webhook 告警（邮件待做）
+- [ ✅ ] 钉钉 + 邮件告警
 - [ ✅ ] 具备实时事件流的 Web 仪表盘
 - [ ] Docker 部署支持
 

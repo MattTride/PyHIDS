@@ -49,12 +49,13 @@
 | **M3.3** 告警接线 | `alert_if_critical` 闸门 + 配置 + CLI 挂载 + 失败不中断 | ✅ 完成 |
 | **M4.1-4.4** Web 仪表盘 | FastAPI `/api/events` + HTML 页面 + 5s 自动刷新 + `pyhids serve` | ✅ 完成 |
 | **M3.4** 告警去重 | `dedup_key` 指纹 + 时间窗查询 + CLI 闸门（窗口内不重复告警） | ✅ 完成 |
+| **M3.5** 邮件渠道 | `send_email`(SMTP) + 配置字段 + `alert_if_critical` 多渠道分发 | ✅ 完成 |
 
 ### 测试套件现状
 
 ```
 $ pytest -v
-42 passed in 0.26s
+44 passed in 0.28s
 ```
 
 | 测试文件 | 测试数 |
@@ -64,7 +65,7 @@ $ pytest -v
 | `tests/test_load_baseline.py` | 2 |
 | `tests/test_ssh_check.py` | 13 |
 | `tests/test_store.py` | 10 |
-| `tests/test_alert.py` | 6 |
+| `tests/test_alert.py` | 8 |
 | `tests/test_web.py` | 2 |
 
 ---
@@ -73,13 +74,12 @@ $ pytest -v
 
 ### 🔴 立即（下一步）
 
-**M2、M3、M4 + 告警去重(M3.4) 均已完成**（共 42 个测试全绿）。告警去重已上线：
-check/ssh-check 在 `alert.dedup_window_seconds`（默认 3600s）窗口内对同一指纹不重复告警
-（仍照常落库；超窗口可再报，不漏二次攻击）。
+**M2、M3（含告警去重 M3.4 + 邮件 M3.5）、M4 均已完成**（共 44 个测试全绿）。告警现支持
+钉钉 + 邮件双渠道分发，并在 `alert.dedup_window_seconds`（默认 3600s）窗口内对同一指纹
+去重（超窗口可再报，不漏二次攻击）。
 
 下一个里程碑可选 **M5 Docker**（见下表），或先补这几个增强：
 
-- **邮件渠道**：当前只做了钉钉，可加 SMTP。
 - **仪表盘增强**：分页 / 按 source、severity 过滤 / 用 SSE 真推送替代 5s 轮询。
 - **存储去重（可选）**：目前每次检测都落一行，仪表盘会看到重复行；如需"每个问题一行"
   可在落库层也去重（注意会丢"上次见到"的信息）。
@@ -90,7 +90,7 @@ check/ssh-check 在 `alert.dedup_window_seconds`（默认 3600s）窗口内对�
 
 | 里程碑 | 内容 | 备注 |
 |---|---|---|
-| **M3 告警** ✅ | 钉钉 webhook + 窗口去重（已完成；邮件待加） | 去重已做（M3.4，按时间窗）；邮件待加 |
+| **M3 告警** ✅ | 钉钉 + 邮件双渠道 + 窗口去重（全部完成） | 去重 M3.4、邮件 M3.5 均已做 |
 | **M4 Web 仪表盘** ✅ | FastAPI `/api/events` + HTML + 5s 轮询；`pyhids serve` 启动 | 已完成。SSE 真推送 / 过滤 / 分页待做 |
 | **M5 Docker** | 容器化部署 | 需要先把 `requirements.txt` 锁完整、配置改成挂卷 |
 
@@ -120,7 +120,7 @@ check/ssh-check 在 `alert.dedup_window_seconds`（默认 3600s）窗口内对�
 /Users/Tride/PyHIDS/
 ├── pyhids/                       ← Python 包，所有源代码
 │   ├── __init__.py
-│   ├── alert.py                  # 告警：format_alert / send_dingtalk / alert_if_critical
+│   ├── alert.py                  # 告警：format_alert / send_dingtalk / send_email / 多渠道分发
 │   ├── baseline.py               # 文件指纹基线生成与持久化
 │   ├── checker.py                # 文件完整性检测 + Event 工厂
 │   ├── cli.py                    # argparse 入口（5 个子命令：baseline/check/ssh-check/events/serve）
