@@ -20,10 +20,29 @@ DASHBOARD_HTML = """
     th { background: #f4f4f4; }
     .critical { color: #c0392b; font-weight: bold; }
     .warning { color: #e67e22; }
+    .filters { margin-bottom: 1rem; }
+    .filters label { margin-right: 1rem; }
   </style>
 </head>
 <body>
   <h1>🛡️ PyHIDS 事件仪表盘</h1>
+  <div class="filters">
+    <label>来源:
+      <select id="source-filter">
+        <option value="">全部</option>
+        <option value="file_integrity">file_integrity</option>
+        <option value="ssh_brute_force">ssh_brute_force</option>
+      </select>
+    </label>
+    <label>等级:
+      <select id="severity-filter">
+        <option value="">全部</option>
+        <option value="critical">critical</option>
+        <option value="warning">warning</option>
+        <option value="info">info</option>
+      </select>
+    </label>
+  </div>
   <table>
     <thead>
       <tr><th>时间</th><th>来源</th><th>等级</th><th>摘要</th></tr>
@@ -32,7 +51,13 @@ DASHBOARD_HTML = """
   </table>
   <script>
     async function load() {
-      const res = await fetch('/api/events');
+      const source = document.getElementById('source-filter').value;
+      const severity = document.getElementById('severity-filter').value;
+      const params = new URLSearchParams();
+      if (source) params.set('source', source);
+      if (severity) params.set('severity', severity);
+
+      const res = await fetch('/api/events?' + params.toString());
       const events = await res.json();
       const tbody = document.getElementById('events');
       tbody.innerHTML = '';
@@ -43,6 +68,8 @@ DASHBOARD_HTML = """
         tbody.appendChild(row);
       }
     }
+    document.getElementById('source-filter').addEventListener('change', load);
+    document.getElementById('severity-filter').addEventListener('change', load);
     load();
     setInterval(load, 5000);
   </script>
