@@ -54,9 +54,10 @@ DASHBOARD_HTML = """
 def dashboard() -> str:
     return DASHBOARD_HTML
 @app.get("/api/events")
-def api_events(limit: int = 50, source: str | None =None) -> list[dict]:
+def api_events(limit: int = 50, source: str | None = None, severity: str | None = None) -> list[dict]:
     """返回最近的事件，最新在前"""
-    events = query_events(limit=limit, source=source)
+    events = query_events(limit=limit, source=source, severity=severity)
+    
     return [
         {
             "detected_at": e.detected_at.isoformat(),

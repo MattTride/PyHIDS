@@ -31,3 +31,15 @@ def test_dashboard_page_is_served():
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
     assert "PyHIDS" in response.text
+
+def test_api_events_forwards_filters(monkeypatch):
+    captured = {}
+    def fake_query(**kwargs):
+        captured.update(kwargs)
+        return []
+    monkeypatch.setattr(web, "query_events", fake_query)
+
+    client.get("/api/events?source=ssh_brute_force&severity=critical")
+
+    assert captured["source"] == "ssh_brute_force"
+    assert captured["severity"] == "critical"
