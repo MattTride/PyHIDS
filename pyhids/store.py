@@ -10,7 +10,6 @@ from pathlib import Path
 from dataclasses import dataclass
 from datetime import datetime
 
-from pygments.util import split_path_re
 
 
 @dataclass
