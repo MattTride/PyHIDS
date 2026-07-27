@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyhids"
+version = "0.1.0"
+description = "轻量级主机入侵检测系统：文件完整性 + SSH 暴破检测 + 告警 + Web 仪表盘"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+dependencies = [
+    "PyYAML>=6.0",
+    "fastapi>=0.100",
+    "uvicorn>=0.30",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "httpx>=0.27",
+]
+
+[project.scripts]
+pyhids = "pyhids.cli:main"
+
+[tool.setuptools]
+packages = ["pyhids"]
