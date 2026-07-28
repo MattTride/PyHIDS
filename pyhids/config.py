@@ -5,13 +5,14 @@ pyhids.config — 配置加载模块
 """
 from __future__ import annotations
 
+import os
+
 import yaml
 from pathlib import Path
 from dataclasses import dataclass, field
 from typing import List
 
-
-DEFAULT_CONFIG_PATH = Path("config/watchlist.yaml")
+DEFAULT_CONFIG_PATH = Path(os.getenv("PYHIDS_CONFIG_PATH", "config/watchlist.yaml"))
 
 
 @dataclass

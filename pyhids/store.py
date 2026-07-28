@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import sqlite3
 from pathlib import Path
 from dataclasses import dataclass
@@ -24,7 +25,7 @@ class Event:
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_DB_PATH = Path("data/events.db")
+DEFAULT_DB_PATH = Path(os.getenv("PYHIDS_DB_PATH", "data/events.db"))
 
 # language=SQL
 SCHEMA = """

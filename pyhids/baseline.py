@@ -5,6 +5,7 @@ pyhids.baseline — 基线生成与持久化模块
 """
 from __future__ import annotations
 import json
+import os
 from datetime import datetime
 from pathlib import Path
 
@@ -13,7 +14,7 @@ from pyhids.hasher import hash_file
 import logging
 logger = logging.getLogger(__name__)
 
-DEFAULT_BASELINE_PATH = Path("data/baseline.json")
+DEFAULT_BASELINE_PATH = Path(os.getenv("PYHIDS_BASELINE_PATH", "data/baseline.json"))
 BASELINE_VERSION = "1.0"
 
 def build_baseline(cfg: Config) -> dict:
