@@ -1,7 +1,7 @@
 # PyHIDS 项目交接文档
 
-最后更新：2026-05-30
-当前进度：M2 全部完成（文件完整性 + SSH 检测 + SQLite 持久化 + 测试覆盖 + 技术债清理）
+最后更新：2026-07-29
+当前进度：M1–M5 全部完成（文件完整性 + SSH 检测 + 持久化 + 告警 + Web 仪表盘 + 打包与 Docker 部署）
 
 ---
 
@@ -51,6 +51,10 @@
 | **M3.4** 告警去重 | `dedup_key` 指纹 + 时间窗查询 + CLI 闸门（窗口内不重复告警） | ✅ 完成 |
 | **M3.5** 邮件渠道 | `send_email`(SMTP) + 配置字段 + `alert_if_critical` 多渠道分发 | ✅ 完成 |
 | **M4.5** 仪表盘过滤 | query_events 动态 WHERE(source/severity)+ /api/events 透传 + 前端下拉框 | ✅ 完成 |
+| **M5.1** 打包 | `pyproject.toml` + console script，`pip install -e .` 后可直接敲 `pyhids` | ✅ 完成 |
+| **M5.2** 路径可配置 | 三个 `PYHIDS_*_PATH` 环境变量，覆盖 cwd 相对的硬编码默认值 | ✅ 完成 |
+| **M5.3** 容器化 | `Dockerfile` + `.dockerignore`，slim 基础镜像 + 分层缓存 | ✅ 完成 |
+| **M5.4** 编排与文档 | `docker-compose.yml`（挂卷 + 端口）+ README Docker 章节 | ✅ 完成 |
 
 ### 测试套件现状
 
@@ -75,12 +79,16 @@ $ pytest -v
 
 ### 🔴 立即（下一步）
 
-**M2、M3、M4（含仪表盘过滤 M4.5）均已完成**（共 46 个测试全绿）。仪表盘现可按
-source/severity 过滤；告警支持钉钉+邮件双渠道、按时间窗去重。
+**M1–M5 全部完成**（46 个测试全绿，`docker compose up -d` 可一键起仪表盘）。
 
-下一个里程碑可选 **M5 Docker**（见下表），或先补这几个增强：
+roadmap 上没有既定的下一个里程碑了，候选项：
 
-- **仪表盘**：分页（limit/offset 已有 limit，补 offset + 上/下页）/ 用 SSE 真推送替代 5s 轮询。
+- **M2.3 实时文件监控**：用一直声明着却没用的 `watchdog`，把「跑一次 check」升级成
+  常驻进程实时监听（需要处理事件去抖动 + 长驻进程的生命周期）。
+- **M2.4 新检测源**：解析 auth.log 里的 sudo 失败 / su 提权，验证「新事件源不用改表」
+  这个单表 + JSON payload 的设计。
+- **M4.6 仪表盘增强**：分页（已有 limit，补 offset + 上/下页）/ 用 SSE 真推送替代 5s 轮询。
+- **M5.5 Docker 收尾（小）**：镜像里目前用 root 跑，可加非 root 用户；`HEALTHCHECK` 也没配。
 - **存储去重（可选）**：目前每次检测都落一行，仪表盘会看到重复行；如需"每个问题一行"
   可在落库层也去重（注意会丢"上次见到"的信息）。
 
@@ -92,7 +100,7 @@ source/severity 过滤；告警支持钉钉+邮件双渠道、按时间窗去重
 |---|---|---|
 | **M3 告警** ✅ | 钉钉 + 邮件双渠道 + 窗口去重（全部完成） | 去重 M3.4、邮件 M3.5 均已做 |
 | **M4 Web 仪表盘** ✅ | FastAPI `/api/events` + HTML + 5s 轮询；`pyhids serve`；source/severity 过滤(M4.5) | 已完成。SSE 真推送 / 分页待做 |
-| **M5 Docker** | 容器化部署 | 需要先把 `requirements.txt` 锁完整、配置改成挂卷 |
+| **M5 Docker** ✅ | `pyproject.toml` 打包 + 环境变量路径 + Dockerfile + compose | 已完成 |
 
 ### 🟢 技术债 / 优化点
 
@@ -108,9 +116,10 @@ source/severity 过滤；告警支持钉钉+邮件双渠道、按时间窗去重
 
 | 待办 | 出处 | 影响 |
 |---|---|---|
-| **`watchdog` 已声明但未使用** | `requirements.txt` | 有意保留：为将来"文件实时监控"预留（用户决定留着） |
+| **`watchdog` 已声明但未使用** | `requirements.txt` | 有意保留：为将来"文件实时监控"预留（用户决定留着）。**注意**：它没进 `pyproject.toml` 的 `dependencies`，等 M2.3 真用上再加 |
 | **`output_report` print 风格不统一** | `ssh_check.py` vs `checker.py` | 纯展示层小问题，优先级最低 |
-| **没有 `setup.py` / `pyproject.toml`** | - | 现在只能 `python -m pyhids.cli`，没法 `pip install -e .` 后直接 `pyhids ...` |
+| **`requirements.txt` 与 `pyproject.toml` 并存** | 两处都列依赖，可能漂移 | 短期无害（前者给 `pip install -r`，后者才是权威）；长期可只留 pyproject |
+| **镜像里用 root 跑** | `Dockerfile` | 生产建议加非 root 用户 + `HEALTHCHECK` |
 
 ---
 
@@ -147,7 +156,11 @@ source/severity 过滤；告警支持钉钉+邮件双渠道、按时间窗去重
 │   ├── auth.log                  (合成的 sshd 日志，含 1.2.3.4 暴破场景)
 │   ├── etc/{hosts,passwd}
 │   └── home/authorized_keys
-├── requirements.txt              # 依赖：PyYAML + watchdog + pytest + fastapi + uvicorn + httpx
+├── pyproject.toml                # 包元数据 + 依赖 + `pyhids` console script（权威依赖清单）
+├── Dockerfile                    # 容器镜像：python:3.13-slim + pip install + serve
+├── docker-compose.yml            # 编排：端口映射 + data/config/被监控目录挂卷
+├── .dockerignore                 # 构建上下文排除（.venv / .git / data 等）
+├── requirements.txt              # 旧依赖清单（保留兼容，权威以 pyproject.toml 为准）
 ├── .gitignore                    # Python 标准模板 + `!demo_files/*.log` 反向白名单
 ├── README.md                     # 项目介绍 + roadmap
 ├── HANDOFF.md                    # 本文件
@@ -294,7 +307,15 @@ git clone https://github.com/MattTride/PyHIDS.git
 cd PyHIDS
 python3.14 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install -e ".[dev]"     # 装完 `pyhids` 命令就能直接用（不必再 python -m pyhids.cli）
+```
+
+或者用 Docker，不碰本机 Python 环境：
+
+```bash
+docker compose up -d                        # 仪表盘 http://127.0.0.1:8000
+docker compose exec pyhids pyhids check
+docker compose down
 ```
 
 > 项目用了 Python 3.10+ 语法（`str | None`、`list[X]` 等），低版本不行。
@@ -327,7 +348,7 @@ git checkout -- demo_files/etc/hosts
 python -m pytest -v
 ```
 
-期望 20 passed。
+期望 46 passed。
 
 ### 6.4 看 DB 内容（调试用）
 
@@ -396,6 +417,13 @@ EOF
 | **方法忘加 `()`** | `data = response.json`（没调用）→ `'method' object is not subscriptable` | `json` 是函数本身，`json()` 才是它的返回值 |
 | **字典键值搭错** | `"severity": e.summary`（值放错）、还漏了 summary 键 | 只能靠测试抓；断言报错会直接显示"严重等级里装了摘要" |
 | **验证要够"真"才算数** | M3.3c ssh-check 漏接告警，因 webhook 为空、跑起来看不出，蒙混过提交 | 验证条件要能真正暴露 bug；旁路功能尤其要构造"会触发"的场景，改完先读文件审一遍再跑 |
+| **粘贴出空壳类** | `config.py` 里多了个没有类体的 `class SSHConfig:` → `IndentationError` | 「重复定义同名函数」的变体。commit 前 `grep -c "class Xxx"` 应该是 1 |
+| **`Dockerfile` 建成了文件夹** | IDE 里点了 New → Directory；`docker build` 找不到构建文件 | `Dockerfile` 是**无扩展名的普通文件**；`ls -la` 看开头是 `d` 还是 `-` |
+| **环境变量填成目录** | `ENV PYHIDS_DB_PATH=/data` → `sqlite3.connect("/data")` 报错 | 覆盖值要和**默认值同类型**：默认是 `data/events.db`（文件），就得填到文件名 |
+| **相邻两个空填反** | `EXPOSE 127.0.0.1`（该填端口）而 `--host` 填对了 | 同「if/else 写反」。念一遍："暴露**端口** 8000""监听**地址** 0.0.0.0" |
+| **`ENV` 与 `COPY` 指向不同目录** | `COPY config/ ./config/`（落在 /app/config）但 `ENV` 指向 `/config` | 路径出现在两处就必须对账；改一处就 grep 另一处 |
+| **打包元数据引用的文件没进镜像** | `pyproject.toml` 写了 `readme`/`license`，Dockerfile 没 COPY → `pip install` 失败 | `COPY pyproject.toml README.md LICENSE ./`；`.dockerignore` 也别写 `*.md` 一刀切 |
+| **容器里检测报大量"文件已删除"** | 容器只看得见自己的文件系统，没挂进去的被监控路径全成误报 | 被监控目录要 `-v 宿主路径:容器路径:ro` 挂进去；`:ro` 是安全纪律，不只是习惯 |
 
 ---
 
@@ -405,9 +433,10 @@ EOF
 开发主机：MacBook Pro M1（Mac 开发，Linux 部署）
 
 接手第一件事：
-1. clone 仓库，跑 `pytest -v`，确认 20 个测试全绿
+1. clone 仓库，`pip install -e ".[dev]"`，跑 `pytest -v`，确认 46 个测试全绿
 2. 跑一遍第 6.2 节的完整 demo
-3. 看一眼 `git log --oneline` 理清里程碑节奏
-4. 从 **M2.2.6（写 store 的 pytest）** 开始干
+3. `docker compose up -d` 确认容器化这条路也是通的
+4. 看一眼 `git log --oneline` 理清里程碑节奏
+5. 从第 3 节「立即（下一步）」里挑一个候选里程碑开工
 
 祝你顺利。

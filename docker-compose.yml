@@ -1,0 +1,18 @@
+services:
+  pyhids:
+    build: .
+    image: pyhids:0.1.0
+    container_name: pyhids
+    ports:
+      - "8000:8000"
+    volumes:
+      # 事件库 + 基线：持久化到宿主机，容器删了数据还在
+      - ./data:/data
+      # 配置：挂出来随时改，改完重启容器即可，不用重新构建镜像
+      - ./config:/app/config
+      # 被监控的目标：只读挂载（:ro）
+      # 生产环境请换成宿主机的真实路径，例如：
+      #   - /etc:/host/etc:ro
+      # 并把 config/watchlist.yaml 里的 paths 改成 /host/etc/... 开头
+      - ./demo_files:/app/demo_files:ro
+    restart: unless-stopped
