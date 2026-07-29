@@ -1,0 +1,34 @@
+# 虚拟环境 —— 几百 MB，且是 macOS 编译的，拷进 Linux 镜像也用不了
+.venv/
+venv/
+
+# 版本控制
+.git/
+.gitignore
+
+# IDE
+.idea/
+.vscode/
+
+# Python 缓存与构建产物
+__pycache__/
+*.py[cod]
+.pytest_cache/
+build/
+dist/
+*.egg-info/
+
+# 运行时数据 —— 里面是真实安全事件，绝不能烤进镜像
+data/
+
+# 测试与示例数据 —— 构建镜像用不到
+tests/
+demo_files/
+
+# 文档（README.md 和 LICENSE 除外：pyproject.toml 构建时要读它们）
+HANDOFF.md
+AGENTS.md
+
+# Docker 自身
+Dockerfile
+.dockerignore
