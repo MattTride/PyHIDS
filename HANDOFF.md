@@ -1,7 +1,7 @@
 # PyHIDS 项目交接文档
 
-最后更新：2026-07-29
-当前进度：M1–M5 全部完成（文件完整性 + SSH 检测 + 持久化 + 告警 + Web 仪表盘 + 打包与 Docker 部署）
+最后更新：2026-07-30
+当前进度：M1–M5 + M2.3 全部完成（文件完整性 + 实时监控 + SSH 检测 + 持久化 + 告警 + Web 仪表盘 + 打包与 Docker 部署）
 
 ---
 
@@ -55,12 +55,13 @@
 | **M5.2** 路径可配置 | 三个 `PYHIDS_*_PATH` 环境变量，覆盖 cwd 相对的硬编码默认值 | ✅ 完成 |
 | **M5.3** 容器化 | `Dockerfile` + `.dockerignore`，slim 基础镜像 + 分层缓存 | ✅ 完成 |
 | **M5.4** 编排与文档 | `docker-compose.yml`（挂卷 + 端口）+ README Docker 章节 | ✅ 完成 |
+| **M2.3** 实时文件监控 | `Debouncer` 去抖动 + watchdog observer + `pyhids watch` 子命令 + 8 个测试 | ✅ 完成 |
 
 ### 测试套件现状
 
 ```
 $ pytest -v
-46 passed in 0.28s
+54 passed in 0.28s
 ```
 
 | 测试文件 | 测试数 |
@@ -72,6 +73,7 @@ $ pytest -v
 | `tests/test_store.py` | 11 |
 | `tests/test_alert.py` | 8 |
 | `tests/test_web.py` | 3 |
+| `tests/test_watch.py` | 8 |
 
 ---
 
@@ -79,12 +81,11 @@ $ pytest -v
 
 ### 🔴 立即（下一步）
 
-**M1–M5 全部完成**（46 个测试全绿，`docker compose up -d` 可一键起仪表盘）。
+**M1–M5 + M2.3 全部完成**（54 个测试全绿，`docker compose up -d` 可一键起仪表盘，
+`pyhids watch` 可实时监控）。核心链路已完整闭环：检测 → 落库 → 去重 → 告警 → 展示 → 部署。
 
-roadmap 上没有既定的下一个里程碑了，候选项：
+**这里是一个自然的 v1.0 收工点。** 以下候选项都是可选加深，不做也不影响项目完整性：
 
-- **M2.3 实时文件监控**：用一直声明着却没用的 `watchdog`，把「跑一次 check」升级成
-  常驻进程实时监听（需要处理事件去抖动 + 长驻进程的生命周期）。
 - **M2.4 新检测源**：解析 auth.log 里的 sudo 失败 / su 提权，验证「新事件源不用改表」
   这个单表 + JSON payload 的设计。
 - **M4.6 仪表盘增强**：分页（已有 limit，补 offset + 上/下页）/ 用 SSE 真推送替代 5s 轮询。
@@ -111,12 +112,12 @@ roadmap 上没有既定的下一个里程碑了，候选项：
 - `exclude` 死字段 → 已从 `Config` / `watchlist.yaml` / 打印中删除（目录监控留作未来功能）
 - Python 版本下限 → 已在 README 标注「需要 Python 3.10+」
 - `data/events.db` 未被忽略 → 已补进 `.gitignore`（防安全数据泄到公开仓库）
+- `watchdog` 声明但未使用 → M2.3 已真正用上（`watch.py`），并加进 `pyproject.toml` 的 `dependencies`
 
 **仍待办**：
 
 | 待办 | 出处 | 影响 |
 |---|---|---|
-| **`watchdog` 已声明但未使用** | `requirements.txt` | 有意保留：为将来"文件实时监控"预留（用户决定留着）。**注意**：它没进 `pyproject.toml` 的 `dependencies`，等 M2.3 真用上再加 |
 | **`output_report` print 风格不统一** | `ssh_check.py` vs `checker.py` | 纯展示层小问题，优先级最低 |
 | **`requirements.txt` 与 `pyproject.toml` 并存** | 两处都列依赖，可能漂移 | 短期无害（前者给 `pip install -r`，后者才是权威）；长期可只留 pyproject |
 | **镜像里用 root 跑** | `Dockerfile` | 生产建议加非 root 用户 + `HEALTHCHECK` |
@@ -138,15 +139,17 @@ roadmap 上没有既定的下一个里程碑了，候选项：
 │   ├── log.py                    # logging 中央配置
 │   ├── ssh_check.py              # SSH 暴破检测 + Event 工厂
 │   ├── store.py                  # SQLite 事件持久化（Event / insert / query）
+│   ├── watch.py                  # 实时监控：Debouncer 去抖动 + watchdog observer
 │   └── web.py                    # FastAPI 仪表盘（/api/events + HTML + 自动刷新）
 ├── tests/                        ← pytest 测试套件
 │   ├── test_hasher.py            (4 个测试)
 │   ├── test_checker.py           (5 个测试)
 │   ├── test_load_baseline.py     (2 个测试)
 │   ├── test_ssh_check.py         (13 个测试)
-│   ├── test_store.py             (5 个测试)
-│   ├── test_alert.py             (6 个测试)
-│   └── test_web.py               (2 个测试)
+│   ├── test_store.py             (11 个测试)
+│   ├── test_alert.py             (8 个测试)
+│   ├── test_watch.py             (8 个测试)
+│   └── test_web.py               (3 个测试)
 ├── config/
 │   └── watchlist.yaml            # 用户配置（监控路径、SSH 阈值等）
 ├── data/                         ← 运行时数据（基线 + DB），部分入库
@@ -348,7 +351,7 @@ git checkout -- demo_files/etc/hosts
 python -m pytest -v
 ```
 
-期望 46 passed。
+期望 54 passed。
 
 ### 6.4 看 DB 内容（调试用）
 
@@ -417,6 +420,14 @@ EOF
 | **方法忘加 `()`** | `data = response.json`（没调用）→ `'method' object is not subscriptable` | `json` 是函数本身，`json()` 才是它的返回值 |
 | **字典键值搭错** | `"severity": e.summary`（值放错）、还漏了 summary 键 | 只能靠测试抓；断言报错会直接显示"严重等级里装了摘要" |
 | **验证要够"真"才算数** | M3.3c ssh-check 漏接告警，因 webhook 为空、跑起来看不出，蒙混过提交 | 验证条件要能真正暴露 bug；旁路功能尤其要构造"会触发"的场景，改完先读文件审一遍再跑 |
+| **`Dockerfile` 建成了文件夹** | 在 IDE 里点了 New → Directory，`docker build` 找不到构建文件 | `Dockerfile` 是**无扩展名的文本文件**；建完用 `ls -la` 看开头是 `-` 还是 `d` |
+| **环境变量值少写文件名** | `ENV PYHIDS_DB_PATH=/data`（目录），程序 `sqlite3.connect("/data")` 直接炸 | 覆盖一个默认值时，**新值必须和默认值同类型**：默认是 `data/events.db`（文件），就得给文件路径 |
+| **相邻两个空填反** | `EXPOSE 127.0.0.1` —— 地址填进了要端口的位置 | 填空前把每行念成大白话：「暴露**端口** 8000」「监听**地址** 0.0.0.0」，一念就发现错位（同「if/else 写反」） |
+| **构建时读的文件没拷进镜像** | `pyproject.toml` 里 `readme = "README.md"` / `license = {file=...}`，但 Dockerfile 只 COPY 了 pyproject → `pip install` 报 readme not found | `pip install .` 会**真的去读**这些文件；`.dockerignore` 也别一刀切 `*.md` |
+| **核心参数在核心逻辑里没被用到** | `Debouncer.due()` 的判断里完全没出现 `quiet_period`，于是永远返回 False | 写完检查「参数和属性是否都真的用上了」；PyCharm 把变量标灰就是信号 |
+| **拿"时刻"和"时刻"比** | `if self._last_event_at > now`（语义=上次事件发生在未来，永远假）；应是 `now - last >= quiet_period` | 「过了多久」在代码里必须是**减法**；比较的两边要同量纲：时长 vs 时长，不是时刻 vs 时刻 |
+| **"重置状态"写成了反方向** | 触发后调 `self.record_event(now)`（=又来一个事件，重新武装计时器），本该赋 `None`（解除武装） | 重置就是**把状态还原成初始哨兵值**，直接赋值，别调那个"记录新事件"的方法。此 bug 会导致每秒重复触发、刷爆库和告警群 |
+| **长驻进程必须有关闭路径** | `observer.start()` 起的是后台线程，不 `stop()` + `join()` 会留僵尸线程、进程退不掉 | `try / except KeyboardInterrupt / finally` 三件套；`finally` 里做清理，保证任何退出方式都走到 |
 | **粘贴出空壳类** | `config.py` 里多了个没有类体的 `class SSHConfig:` → `IndentationError` | 「重复定义同名函数」的变体。commit 前 `grep -c "class Xxx"` 应该是 1 |
 | **`Dockerfile` 建成了文件夹** | IDE 里点了 New → Directory；`docker build` 找不到构建文件 | `Dockerfile` 是**无扩展名的普通文件**；`ls -la` 看开头是 `d` 还是 `-` |
 | **环境变量填成目录** | `ENV PYHIDS_DB_PATH=/data` → `sqlite3.connect("/data")` 报错 | 覆盖值要和**默认值同类型**：默认是 `data/events.db`（文件），就得填到文件名 |
