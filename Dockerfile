@@ -11,15 +11,22 @@ RUN pip install --no-cache-dir .
 COPY config/ ./config/
 
 # ── 把数据指向挂卷点（M5.2 的三个环境变量在这里兑现）──
-# TODO(1): DB 文件放 /data/ 下
 ENV PYHIDS_DB_PATH=/data/events.db
-# TODO(2): 基线文件也放 /data/ 下
 ENV PYHIDS_BASELINE_PATH=/data/baseline.json
-# TODO(3): 配置放哪？挂出来给用户改，还是烤进镜像？选一个，说理由
 ENV PYHIDS_CONFIG_PATH=/app/config/watchlist.yaml
 
-# TODO(4): 端口号 —— 看 cli.py 里 serve 的默认值
+# ── 非 root 用户：被攻破时限制影响范围 ──
+# UID 固定成 1000，方便宿主机 chown 挂卷目录（Linux 上按 UID 匹配，与用户名无关）
+RUN useradd --create-home --uid 1000 pyhids \
+    && mkdir -p /data \
+    && chown -R pyhids:pyhids /data /app
+USER pyhids
+
 EXPOSE 8000
 
-# TODO(5): 容器里必须监听哪个地址？（不是 127.0.0.1，想想为什么）
+# ── 健康检查：容器"活着"不等于"能服务" ──
+# 基础镜像里没有 curl，用 Python 标准库发请求，避免为此多装一个包
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD python -c "import urllib.request, sys; sys.exit(0) if urllib.request.urlopen('http://127.0.0.1:8000/api/events?limit=1', timeout=4).status == 200 else sys.exit(1)"
+
 CMD ["pyhids", "serve", "--host", "0.0.0.0"]
