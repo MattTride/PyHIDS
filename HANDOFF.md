@@ -1,7 +1,7 @@
 # PyHIDS 项目交接文档
 
 最后更新：2026-07-30
-当前进度：**v1.1.0 —— roadmap 全部完成**（文件完整性 + 实时监控 + SSH/提权检测 + 持久化 + 告警 + SSE 仪表盘 + 打包与加固过的 Docker 部署）
+当前进度：**v1.2.0 —— roadmap 全部完成 + 桌面 App 打包**（文件完整性 + 实时监控 + SSH/提权检测 + 持久化 + 告警 + SSE 仪表盘 + 打包与加固过的 Docker 部署）
 
 ---
 
@@ -59,12 +59,13 @@
 | **M5.5** 容器加固 | 非 root 用户（UID 1000）+ `HEALTHCHECK`（标准库发请求，不装 curl） | ✅ 完成 |
 | **M2.4** 提权检测源 | `sudo_check.py`：失败风暴 + 非授权提权 + `pyhids sudo-check` + 15 个测试 | ✅ 完成 |
 | **M4.6** 仪表盘增强 | `/api/stream` SSE 推送替代 5s 轮询 + offset 分页 + 上/下页 + 8 个测试 | ✅ 完成 |
+| **M6** 桌面 App | `app.py` 应用模式 + PyInstaller 打包成 `PyHIDS.app` + 12 个测试 | ✅ 完成 |
 
 ### 测试套件现状
 
 ```
 $ pytest -v
-77 passed in 0.24s
+89 passed in 0.31s
 ```
 
 | 测试文件 | 测试数 |
@@ -78,6 +79,7 @@ $ pytest -v
 | `tests/test_web.py` | 6 |
 | `tests/test_watch.py` | 8 |
 | `tests/test_sudo_check.py` | 15 |
+| `tests/test_app.py` | 12 |
 
 ---
 
@@ -85,8 +87,10 @@ $ pytest -v
 
 ### 🔴 立即（下一步）
 
-**roadmap 上的所有里程碑都已完成**（77 个测试全绿）。已打 tag：`v1.0.0`（M1–M5 + M2.3）、
-`v1.1.0`（M5.5 + M2.4 + M4.6）。
+**roadmap 上的所有里程碑都已完成**（89 个测试全绿）。已打 tag：`v1.0.0`（M1–M5 + M2.3）、
+`v1.1.0`（M5.5 + M2.4 + M4.6）、`v1.2.0`（M6 桌面 App）。
+
+三种分发形态都可用：`pip install -e .` / `docker compose up -d` / 双击 `PyHIDS.app`。
 
 如果以后还想继续，剩下的都是全新方向，不是收尾：
 
@@ -137,6 +141,7 @@ $ pytest -v
 ├── pyhids/                       ← Python 包，所有源代码
 │   ├── __init__.py
 │   ├── alert.py                  # 告警：format_alert / send_dingtalk / send_email / 多渠道分发
+│   ├── app.py                    # 桌面 App 模式：数据目录 / bootstrap / 自启动仪表盘
 │   ├── baseline.py               # 文件指纹基线生成与持久化
 │   ├── checker.py                # 文件完整性检测 + Event 工厂
 │   ├── cli.py                    # argparse 入口（5 个子命令：baseline/check/ssh-check/events/serve）
@@ -159,7 +164,8 @@ $ pytest -v
 │   ├── test_watch.py             (8 个测试)
 │   └── test_web.py               (6 个测试)
 ├── config/
-│   └── watchlist.yaml            # 用户配置（监控路径、SSH 阈值等）
+│   ├── watchlist.yaml            # 开发用配置（指向 demo_files）
+│   └── watchlist.default.yaml    # App 首次启动复制给用户的默认配置（绝对路径）
 ├── data/                         ← 运行时数据（基线 + DB），部分入库
 │   ├── baseline.json             (跟踪，但每次 baseline 都会更新)
 │   └── events.db                 (gitignored，运行时生成)
@@ -167,6 +173,8 @@ $ pytest -v
 │   ├── auth.log                  (合成的 sshd 日志，含 1.2.3.4 暴破场景)
 │   ├── etc/{hosts,passwd}
 │   └── home/authorized_keys
+├── launcher.py                   # PyInstaller 的入口脚本
+├── pyhids.spec                   # PyInstaller 打包配置（datas / hiddenimports / BUNDLE）
 ├── pyproject.toml                # 包元数据 + 依赖 + `pyhids` console script（权威依赖清单）
 ├── Dockerfile                    # 容器镜像：python:3.13-slim + pip install + serve
 ├── docker-compose.yml            # 编排：端口映射 + data/config/被监控目录挂卷
@@ -359,7 +367,7 @@ git checkout -- demo_files/etc/hosts
 python -m pytest -v
 ```
 
-期望 77 passed。
+期望 89 passed。
 
 ### 6.4 看 DB 内容（调试用）
 
@@ -439,6 +447,13 @@ EOF
 | **`>>` 追加时首行被粘到上一行** | 往 `demo_files/auth.log` 追加日志，原文件结尾没换行符，第一条新记录被拼到旧记录末尾，正则匹配不上 → 检测少算一条 | 追加前先确认文件以 `\n` 结尾；追加后 `tail -3` 看一眼行边界 |
 | **无限流用 TestClient 测会挂死** | 给 SSE 的 `/api/stream` 写测试，`with client.stream(...)` 退出时要等服务端生成器结束 —— 而它是 `while True`，pytest 直接卡住 | 把生成器提成模块级函数，测试里 `await anext(gen)` 取一条就 `aclose()`，不走 HTTP |
 | **窗口时间不能进去重指纹** | `dedup_key` 的兜底分支用 `summary`，而提权事件的 summary 里含窗口时间 → 窗口一挪指纹就变，去重永远失效 | 指纹只取**稳定标识**（谁 + 哪类问题），不要包含会随时间变化的字段 |
+| **双击启动时 cwd 是 `/`** | App 里所有相对路径（`data/events.db`）全部失效 | 桌面应用必须把数据写到**用户数据目录**，且配置里的路径要写绝对路径 |
+| **模块级常量读环境变量 = 只在 import 那一刻生效** | `app.py` 若照常在文件顶部 `from pyhids.store import ...`，bootstrap() 设的环境变量就来不及生效 | App 入口里对这些模块**延迟 import**（写在函数体内），bootstrap 先跑 |
+| **探测条件比真实条件更严格 → 误判** | `find_free_port` 探测时没设 `SO_REUSEADDR`，而 uvicorn 设了；上个实例刚退出、socket 在 TIME_WAIT 时被误判成"端口被占"，白白换随机端口 | 探测某资源可不可用时，**探测方式必须和真实使用方式完全一致** |
+| **`pkill -f` 没杀干净导致测试误判** | E2E 测试里泄漏了 3 个 App 实例，旧实例占着 8000，新实例按设计换到随机端口，而我一直 curl 8000 → 以为 App 崩了 | 长驻进程的测试，先 `pgrep` 确认清理干净；端口要从进程日志里读，不要假设 |
+| **`console=False` 打包后日志进虚空** | 双击启动没有终端，`print` 和 stdout 日志全看不见，出错无从排查 | App 模式必须额外配一个 `FileHandler` 写日志文件；`basicConfig` 重复调用要加 `force=True` 才生效 |
+| **`*.spec` 被 gitignore 默认吞掉** | `pyhids.spec` 是手写的打包配置，却被 Python 模板里"忽略 PyInstaller 自动生成的 spec"那条规则吃了 | 加 `!pyhids.spec` 反向白名单（同 `demo_files/*.log` 那次）；新增关键文件后 `git status` 确认它真的出现了 |
+| **`.gitignore` 不支持行尾注释** | 写成 `!pyhids.spec    # 说明文字`，整行被当成一个字面文件名，白名单不生效 | `#` 只有在**行首**才是注释；说明写在上一行 |
 | **粘贴出空壳类** | `config.py` 里多了个没有类体的 `class SSHConfig:` → `IndentationError` | 「重复定义同名函数」的变体。commit 前 `grep -c "class Xxx"` 应该是 1 |
 | **`Dockerfile` 建成了文件夹** | IDE 里点了 New → Directory；`docker build` 找不到构建文件 | `Dockerfile` 是**无扩展名的普通文件**；`ls -la` 看开头是 `d` 还是 `-` |
 | **环境变量填成目录** | `ENV PYHIDS_DB_PATH=/data` → `sqlite3.connect("/data")` 报错 | 覆盖值要和**默认值同类型**：默认是 `data/events.db`（文件），就得填到文件名 |

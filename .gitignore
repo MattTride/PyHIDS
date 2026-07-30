@@ -31,6 +31,8 @@ MANIFEST
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
 *.spec
+# 我们这份是手写的打包配置，不是 PyInstaller 自动生成的，必须入库
+!pyhids.spec
 
 # Installer logs
 pip-log.txt

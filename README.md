@@ -12,6 +12,7 @@ A lightweight host-based intrusion detection system written in Python.
 - [ ✅ ] DingTalk + email alerting
 - [ ✅ ] Web dashboard with SSE push, filters and pagination
 - [ ✅ ] Docker deployment (non-root, healthchecked)
+- [ ✅ ] Standalone desktop app (PyInstaller bundle, no Python needed)
 
 ## Install
 
@@ -74,6 +75,42 @@ current page. That replaced a blind 5-second poll, so an idle dashboard makes no
 requests at all. Auto-refresh pauses while you are on page 2 or later, so paging
 back through history does not yank you to the top.
 
+## Desktop app
+
+Build a self-contained bundle — no Python, no `pip`, nothing to install on the
+target machine:
+
+```bash
+pip install -e ".[dev]"
+pyinstaller pyhids.spec --noconfirm       # -> dist/PyHIDS.app (32 MB)
+```
+
+Double-clicking it builds a baseline on first run, starts the real-time file
+watcher, serves the dashboard and opens your browser. Everything lives in a
+per-user data directory, so the app works from anywhere:
+
+| Platform | Data directory |
+|---|---|
+| macOS | `~/Library/Application Support/PyHIDS/` |
+| Linux | `~/.local/share/pyhids/` |
+| Windows | `%APPDATA%\PyHIDS\` |
+
+It holds `watchlist.yaml` (copied from `config/watchlist.default.yaml` on first
+run, then yours to edit), `events.db`, `baseline.json` and `pyhids.log`. Set
+`PYHIDS_DATA_DIR` to put it somewhere else. A double-clicked app has no terminal,
+so `pyhids.log` is the only place startup errors show up — read it first when
+something looks wrong.
+
+The bundled binary is still the full CLI:
+
+```bash
+dist/PyHIDS.app/Contents/MacOS/PyHIDS check
+dist/PyHIDS.app/Contents/MacOS/PyHIDS events --limit 20
+```
+
+Port 8000 is preferred; if it is busy the app picks a free one and opens the
+browser there rather than failing with no visible error.
+
 ## Docker
 
 ```bash
@@ -85,8 +122,8 @@ docker compose down
 Or without compose:
 
 ```bash
-docker build -t pyhids:1.1.0 .
-docker run -d --rm -p 8000:8000 -v "$PWD/data:/data" pyhids:1.1.0
+docker build -t pyhids:1.2.0 .
+docker run -d --rm -p 8000:8000 -v "$PWD/data:/data" pyhids:1.2.0
 ```
 
 **Mount whatever you want monitored read-only.** A container only sees its own
@@ -105,7 +142,7 @@ directory writable by that UID: `sudo chown -R 1000:1000 data`.
 
 ## Status
 
-v1.1.0 — feature-complete. Started May 2026. 77 tests passing.
+v1.2.0 — feature-complete. Started May 2026. 89 tests passing.
 
 **Requires Python 3.10+** (uses `X | None` / `list[X]` type-hint syntax).
 
@@ -122,6 +159,7 @@ v1.1.0 — feature-complete. Started May 2026. 77 tests passing.
 - [ ✅ ] 钉钉 + 邮件告警
 - [ ✅ ] Web 仪表盘：SSE 实时推送 + 过滤 + 分页
 - [ ✅ ] Docker 部署（非 root 运行 + 健康检查）
+- [ ✅ ] 独立桌面 App（PyInstaller 打包，目标机器无需 Python）
 
 ## 安装
 
@@ -178,6 +216,40 @@ pyhids serve                  # http://127.0.0.1:8000
 这取代了原来每 5 秒一次的盲目轮询 —— 现在没有新事件时，闲置的仪表盘一个请求都不发。
 另外翻到第 2 页以后自动刷新会暂停，免得你正在翻历史却被拽回顶部。
 
+## 桌面 App
+
+打包成独立应用 —— 目标机器不需要装 Python、不需要 `pip`、什么都不用装：
+
+```bash
+pip install -e ".[dev]"
+pyinstaller pyhids.spec --noconfirm       # 产物 dist/PyHIDS.app（32 MB）
+```
+
+双击后：首次运行自动建立基线 → 启动实时文件监控 → 打开仪表盘并弹出浏览器。
+所有数据放在用户数据目录，所以 App 放在哪儿都能跑：
+
+| 平台 | 数据目录 |
+|---|---|
+| macOS | `~/Library/Application Support/PyHIDS/` |
+| Linux | `~/.local/share/pyhids/` |
+| Windows | `%APPDATA%\PyHIDS\` |
+
+里面有 `watchlist.yaml`（首次运行从 `config/watchlist.default.yaml` 复制过来，
+之后归你改，不会被覆盖）、`events.db`、`baseline.json` 和 `pyhids.log`。
+想换位置就设 `PYHIDS_DATA_DIR`。
+
+**双击启动没有终端，`pyhids.log` 是唯一能看到启动错误的地方** —— 出问题先看它。
+
+打包后的二进制同时也是完整的 CLI：
+
+```bash
+dist/PyHIDS.app/Contents/MacOS/PyHIDS check
+dist/PyHIDS.app/Contents/MacOS/PyHIDS events --limit 20
+```
+
+端口优先用 8000；被占用时会自动换一个空闲端口并把浏览器开到那里，
+而不是无声无息地启动失败。
+
 ## Docker 部署
 
 ```bash
@@ -189,8 +261,8 @@ docker compose down
 不用 compose 的话：
 
 ```bash
-docker build -t pyhids:1.1.0 .
-docker run -d --rm -p 8000:8000 -v "$PWD/data:/data" pyhids:1.1.0
+docker build -t pyhids:1.2.0 .
+docker run -d --rm -p 8000:8000 -v "$PWD/data:/data" pyhids:1.2.0
 ```
 
 **要监控的目录必须只读挂载进容器。** 容器只能看见自己的文件系统，
@@ -206,6 +278,6 @@ volumes:
 在 Linux 上要让挂进去的 `data/` 目录对该 UID 可写：`sudo chown -R 1000:1000 data`。
 
 # 项目状态
-v1.1.0 —— 功能已完整。项目始于 2026 年 5 月，77 个测试全绿。
+v1.2.0 —— 功能已完整。项目始于 2026 年 5 月，89 个测试全绿。
 
 **需要 Python 3.10+**（使用了 `X | None` / `list[X]` 等类型注解语法）。

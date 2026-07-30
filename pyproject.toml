@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyhids"
-version = "1.1.0"
+version = "1.2.0"
 description = "轻量级主机入侵检测系统：文件完整性 + 实时监控 + SSH/提权检测 + 告警 + Web 仪表盘"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -20,6 +20,7 @@ dependencies = [
 dev = [
     "pytest>=8.0",
     "httpx>=0.27",
+    "pyinstaller>=6.0",   # 打包桌面 App，仅构建时需要
 ]
 
 [project.scripts]

@@ -1,0 +1,37 @@
+# PyHIDS App 首次启动时会把这份文件复制到用户数据目录，之后改那一份即可：
+#   macOS   ~/Library/Application Support/PyHIDS/watchlist.yaml
+#   Linux   ~/.local/share/pyhids/watchlist.yaml
+#   Windows %APPDATA%\PyHIDS\watchlist.yaml
+#
+# 路径必须写绝对路径 —— App 双击启动时工作目录是 /，相对路径没有意义。
+
+algorithm: sha256
+
+paths:
+  - /etc/hosts
+  - /etc/passwd
+  - /etc/ssh/sshd_config
+
+scan_interval: 60
+
+ssh:
+  # Debian/Ubuntu 是 /var/log/auth.log，RHEL/CentOS 是 /var/log/secure。
+  # macOS 没有这种文本日志，`pyhids ssh-check` 在 macOS 上用不了（仪表盘不受影响）。
+  log_path: /var/log/auth.log
+  window_seconds: 60
+  threshold: 5
+
+sudo:
+  log_path: /var/log/auth.log
+  window_seconds: 60
+  threshold: 3
+
+alert:
+  dingtalk_webhook: ""
+  dedup_window_seconds: 3600
+  email_host: ""
+  email_port: 587
+  email_user: ""
+  email_password: ""
+  email_from: ""
+  email_to: ""
