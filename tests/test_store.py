@@ -5,6 +5,18 @@ from pyhids.store import init_db
 from pyhids.store import Event, insert_event, query_events
 from pyhids.store import dedup_key
 from pyhids.store import dedup_keys_since
+from pyhids.store import max_event_id
+
+
+def _sample_event(summary: str, minute: int = 0) -> Event:
+    """造一条测试用事件；minute 用来拉开 detected_at，控制排序。"""
+    return Event(
+        detected_at=datetime(2026, 5, 8, 12, minute, 0),
+        source="file_integrity",
+        severity="critical",
+        summary=summary,
+        payload={"file_path": "/etc/passwd", "change": "modified"},
+    )
 
 def test_init_db_creates_database_file_and_is_idempotent(tmp_path):
     db_path = tmp_path / "nested" / "events.db"
@@ -229,3 +241,39 @@ def test_query_events_filters_by_severity(tmp_path):
 
     assert len(events) == 1
     assert events[0].severity == "critical"
+def test_max_event_id_is_zero_for_an_empty_database(tmp_path):
+    db_path = tmp_path / "events.db"
+    init_db(db_path)
+
+    assert max_event_id(db_path) == 0
+
+def test_max_event_id_tracks_the_latest_insert(tmp_path):
+    db_path = tmp_path / "events.db"
+    init_db(db_path)
+
+    first = insert_event(_sample_event("第一条"), db_path)
+    assert max_event_id(db_path) == first
+
+    second = insert_event(_sample_event("第二条"), db_path)
+    assert max_event_id(db_path) == second
+    assert second > first
+
+def test_query_events_offset_skips_rows(tmp_path):
+    db_path = tmp_path / "events.db"
+    init_db(db_path)
+    # detected_at 递增，查询按它倒序 → 最新的("第三条")排最前
+    for i, name in enumerate(("第一条", "第二条", "第三条")):
+        insert_event(_sample_event(name, minute=i), db_path)
+
+    page1 = query_events(limit=2, offset=0, db_path=db_path)
+    page2 = query_events(limit=2, offset=2, db_path=db_path)
+
+    assert [e.summary for e in page1] == ["第三条", "第二条"]
+    assert [e.summary for e in page2] == ["第一条"]
+
+def test_query_events_offset_beyond_the_end_returns_nothing(tmp_path):
+    db_path = tmp_path / "events.db"
+    init_db(db_path)
+    insert_event(_sample_event("唯一一条"), db_path)
+
+    assert query_events(limit=10, offset=99, db_path=db_path) == []
