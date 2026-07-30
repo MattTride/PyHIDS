@@ -12,12 +12,29 @@ from datetime import datetime, timedelta
 from pyhids.store import query_events, print_events_table, init_db, insert_event
 from pyhids.log import setup_logging
 from pyhids.baseline import build_baseline, save_baseline
-from pyhids.config import load_config
+from pyhids.config import Config, load_config
 from pyhids.checker import check, output_report, event_from_file_change
 from pyhids.ssh_check import check_ssh, print_ssh_report, event_from_brute_force
 from pyhids.alert import alert_if_critical
 from pyhids.store import dedup_key, dedup_keys_since
+from pyhids.watch import watch
 
+
+def handle_fim_report(report: dict, cfg: Config) -> None:
+    """打印 FIM 报告，把每个变化落库，窗口内没见过的才告警。
+
+    check 和 watch 两个子命令共用这段逻辑。
+    """
+    output_report(report)
+
+    cutoff = datetime.now() - timedelta(seconds=cfg.alert.dedup_window_seconds)
+    seen = dedup_keys_since(cutoff)
+    for change_type in ("modified", "deleted", "added"):
+        for file_path in report[change_type]:
+            event = event_from_file_change(change_type, file_path)
+            insert_event(event)
+            if dedup_key(event) not in seen:
+                alert_if_critical(event, cfg.alert)
 
 
 def main() -> None:
@@ -50,6 +67,12 @@ def main() -> None:
     parser_events = subparsers.add_parser("events", help="查询历史事件")
     parser_events.add_argument("--limit", type=int, default=50, help="最多显示条数（默认 50）")
     parser_events.add_argument("--source", type=str, default=None,help="按事件源过滤（file_integrity / ssh_brute_force）")
+    # ================== 窗口 F：watch 业务 ==================
+    parser_watch = subparsers.add_parser("watch", help="实时监控文件改动（长驻进程）")
+    parser_watch.add_argument("--config", type=str, default=None, help="配置文件路径(config/watchlist.yaml)")
+    parser_watch.add_argument("--baseline", type=str, default=None, help="基线路径(data/baseline.json)")
+    parser_watch.add_argument("--quiet-period", type=float, default=1.0,
+                              help="一波改动安静多少秒后触发检查（默认 1.0）")
     # ================== 窗口 E：serve 业务 ==================
     parser_serve = subparsers.add_parser("serve", help="启动 Web 仪表盘")
     parser_serve.add_argument("--host", type=str, default="127.0.0.1", help="监听地址（默认 127.0.0.1）")
@@ -90,18 +113,7 @@ def main() -> None:
         else:
             report = check(cfg, baseline_path=args.baseline)
 
-        output_report(report)
-
-        # 把每个 FIM 变化落库；告警前先按窗口去重
-        cutoff = datetime.now() - timedelta(seconds=cfg.alert.dedup_window_seconds)
-        seen = dedup_keys_since(cutoff)
-        for change_type in ("modified", "deleted", "added"):
-            for file_path in report[change_type]:
-                event = event_from_file_change(change_type, file_path)
-                insert_event(event)
-                if dedup_key(event) not in seen:
-                    alert_if_critical(event, cfg.alert)
-
+        handle_fim_report(report, cfg)
 
         if report["summary"]["total_issues"] > 0:
             sys.exit(1)
@@ -137,6 +149,22 @@ def main() -> None:
     elif args.command == "events":
         events = query_events(limit=args.limit, source=args.source)
         print_events_table(events)
+
+    elif args.command == "watch":
+        if args.config is None:
+            cfg = load_config()
+        else:
+            cfg = load_config(args.config)
+
+        def on_change() -> None:
+            """一波文件改动安静下来后，跑一次完整检查。"""
+            if args.baseline is None:
+                report = check(cfg)
+            else:
+                report = check(cfg, baseline_path=args.baseline)
+            handle_fim_report(report, cfg)
+
+        watch(cfg, on_change, quiet_period=args.quiet_period)
 
     elif args.command == "serve":
         import uvicorn
