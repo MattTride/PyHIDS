@@ -1,7 +1,7 @@
 # PyHIDS 项目交接文档
 
 最后更新：2026-07-30
-当前进度：M1–M5 + M2.3 全部完成（文件完整性 + 实时监控 + SSH 检测 + 持久化 + 告警 + Web 仪表盘 + 打包与 Docker 部署）
+当前进度：**v1.1.0 —— roadmap 全部完成**（文件完整性 + 实时监控 + SSH/提权检测 + 持久化 + 告警 + SSE 仪表盘 + 打包与加固过的 Docker 部署）
 
 ---
 
@@ -56,12 +56,15 @@
 | **M5.3** 容器化 | `Dockerfile` + `.dockerignore`，slim 基础镜像 + 分层缓存 | ✅ 完成 |
 | **M5.4** 编排与文档 | `docker-compose.yml`（挂卷 + 端口）+ README Docker 章节 | ✅ 完成 |
 | **M2.3** 实时文件监控 | `Debouncer` 去抖动 + watchdog observer + `pyhids watch` 子命令 + 8 个测试 | ✅ 完成 |
+| **M5.5** 容器加固 | 非 root 用户（UID 1000）+ `HEALTHCHECK`（标准库发请求，不装 curl） | ✅ 完成 |
+| **M2.4** 提权检测源 | `sudo_check.py`：失败风暴 + 非授权提权 + `pyhids sudo-check` + 15 个测试 | ✅ 完成 |
+| **M4.6** 仪表盘增强 | `/api/stream` SSE 推送替代 5s 轮询 + offset 分页 + 上/下页 + 8 个测试 | ✅ 完成 |
 
 ### 测试套件现状
 
 ```
 $ pytest -v
-54 passed in 0.28s
+77 passed in 0.24s
 ```
 
 | 测试文件 | 测试数 |
@@ -72,8 +75,9 @@ $ pytest -v
 | `tests/test_ssh_check.py` | 13 |
 | `tests/test_store.py` | 11 |
 | `tests/test_alert.py` | 8 |
-| `tests/test_web.py` | 3 |
+| `tests/test_web.py` | 6 |
 | `tests/test_watch.py` | 8 |
+| `tests/test_sudo_check.py` | 15 |
 
 ---
 
@@ -81,17 +85,19 @@ $ pytest -v
 
 ### 🔴 立即（下一步）
 
-**M1–M5 + M2.3 全部完成**（54 个测试全绿，`docker compose up -d` 可一键起仪表盘，
-`pyhids watch` 可实时监控）。核心链路已完整闭环：检测 → 落库 → 去重 → 告警 → 展示 → 部署。
+**roadmap 上的所有里程碑都已完成**（77 个测试全绿）。已打 tag：`v1.0.0`（M1–M5 + M2.3）、
+`v1.1.0`（M5.5 + M2.4 + M4.6）。
 
-**这里是一个自然的 v1.0 收工点。** 以下候选项都是可选加深，不做也不影响项目完整性：
+如果以后还想继续，剩下的都是全新方向，不是收尾：
 
-- **M2.4 新检测源**：解析 auth.log 里的 sudo 失败 / su 提权，验证「新事件源不用改表」
-  这个单表 + JSON payload 的设计。
-- **M4.6 仪表盘增强**：分页（已有 limit，补 offset + 上/下页）/ 用 SSE 真推送替代 5s 轮询。
-- **M5.5 Docker 收尾（小）**：镜像里目前用 root 跑，可加非 root 用户；`HEALTHCHECK` 也没配。
-- **存储去重（可选）**：目前每次检测都落一行，仪表盘会看到重复行；如需"每个问题一行"
-  可在落库层也去重（注意会丢"上次见到"的信息）。
+- **存储去重**：目前每次检测都落一行，仪表盘会看到重复行；如需"每个问题一行"
+  可在落库层也去重（注意会丢"上次见到"的信息）。这是当前最明显的可改进点。
+- **更多检测源**：端口监听变化（`ss -tlnp` 快照对比）、crontab 改动、新增 setuid 文件。
+  每加一个都不用改表，只要写一个 `event_from_*` 工厂函数。
+- **告警渠道**：Slack / Telegram / syslog，照着 `send_dingtalk` / `send_email` 的形状写。
+- **`--daemon` 模式**：把 `watch` + 定时 `ssh-check` / `sudo-check` 合成一个进程，
+  配 systemd unit 文件。
+- **规则引擎**：现在检测逻辑写死在代码里，可考虑把阈值/模式做成 YAML 规则文件。
 
 ### 🟡 M2 里程碑收尾后
 
@@ -113,6 +119,7 @@ $ pytest -v
 - Python 版本下限 → 已在 README 标注「需要 Python 3.10+」
 - `data/events.db` 未被忽略 → 已补进 `.gitignore`（防安全数据泄到公开仓库）
 - `watchdog` 声明但未使用 → M2.3 已真正用上（`watch.py`），并加进 `pyproject.toml` 的 `dependencies`
+- 镜像用 root 跑 → M5.5 已改成非 root 用户 `pyhids`（UID 1000）+ `HEALTHCHECK`
 
 **仍待办**：
 
@@ -120,7 +127,6 @@ $ pytest -v
 |---|---|---|
 | **`output_report` print 风格不统一** | `ssh_check.py` vs `checker.py` | 纯展示层小问题，优先级最低 |
 | **`requirements.txt` 与 `pyproject.toml` 并存** | 两处都列依赖，可能漂移 | 短期无害（前者给 `pip install -r`，后者才是权威）；长期可只留 pyproject |
-| **镜像里用 root 跑** | `Dockerfile` | 生产建议加非 root 用户 + `HEALTHCHECK` |
 
 ---
 
@@ -138,18 +144,20 @@ $ pytest -v
 │   ├── hasher.py                 # 文件 SHA-256 计算
 │   ├── log.py                    # logging 中央配置
 │   ├── ssh_check.py              # SSH 暴破检测 + Event 工厂
+│   ├── sudo_check.py             # sudo/su 提权滥用检测 + Event 工厂
 │   ├── store.py                  # SQLite 事件持久化（Event / insert / query）
 │   ├── watch.py                  # 实时监控：Debouncer 去抖动 + watchdog observer
-│   └── web.py                    # FastAPI 仪表盘（/api/events + HTML + 自动刷新）
+│   └── web.py                    # FastAPI 仪表盘（/api/events + /api/stream SSE + HTML）
 ├── tests/                        ← pytest 测试套件
 │   ├── test_hasher.py            (4 个测试)
 │   ├── test_checker.py           (5 个测试)
 │   ├── test_load_baseline.py     (2 个测试)
 │   ├── test_ssh_check.py         (13 个测试)
+│   ├── test_sudo_check.py        (15 个测试)
 │   ├── test_store.py             (11 个测试)
 │   ├── test_alert.py             (8 个测试)
 │   ├── test_watch.py             (8 个测试)
-│   └── test_web.py               (3 个测试)
+│   └── test_web.py               (6 个测试)
 ├── config/
 │   └── watchlist.yaml            # 用户配置（监控路径、SSH 阈值等）
 ├── data/                         ← 运行时数据（基线 + DB），部分入库
@@ -351,7 +359,7 @@ git checkout -- demo_files/etc/hosts
 python -m pytest -v
 ```
 
-期望 54 passed。
+期望 77 passed。
 
 ### 6.4 看 DB 内容（调试用）
 
@@ -428,6 +436,9 @@ EOF
 | **拿"时刻"和"时刻"比** | `if self._last_event_at > now`（语义=上次事件发生在未来，永远假）；应是 `now - last >= quiet_period` | 「过了多久」在代码里必须是**减法**；比较的两边要同量纲：时长 vs 时长，不是时刻 vs 时刻 |
 | **"重置状态"写成了反方向** | 触发后调 `self.record_event(now)`（=又来一个事件，重新武装计时器），本该赋 `None`（解除武装） | 重置就是**把状态还原成初始哨兵值**，直接赋值，别调那个"记录新事件"的方法。此 bug 会导致每秒重复触发、刷爆库和告警群 |
 | **长驻进程必须有关闭路径** | `observer.start()` 起的是后台线程，不 `stop()` + `join()` 会留僵尸线程、进程退不掉 | `try / except KeyboardInterrupt / finally` 三件套；`finally` 里做清理，保证任何退出方式都走到 |
+| **`>>` 追加时首行被粘到上一行** | 往 `demo_files/auth.log` 追加日志，原文件结尾没换行符，第一条新记录被拼到旧记录末尾，正则匹配不上 → 检测少算一条 | 追加前先确认文件以 `\n` 结尾；追加后 `tail -3` 看一眼行边界 |
+| **无限流用 TestClient 测会挂死** | 给 SSE 的 `/api/stream` 写测试，`with client.stream(...)` 退出时要等服务端生成器结束 —— 而它是 `while True`，pytest 直接卡住 | 把生成器提成模块级函数，测试里 `await anext(gen)` 取一条就 `aclose()`，不走 HTTP |
+| **窗口时间不能进去重指纹** | `dedup_key` 的兜底分支用 `summary`，而提权事件的 summary 里含窗口时间 → 窗口一挪指纹就变，去重永远失效 | 指纹只取**稳定标识**（谁 + 哪类问题），不要包含会随时间变化的字段 |
 | **粘贴出空壳类** | `config.py` 里多了个没有类体的 `class SSHConfig:` → `IndentationError` | 「重复定义同名函数」的变体。commit 前 `grep -c "class Xxx"` 应该是 1 |
 | **`Dockerfile` 建成了文件夹** | IDE 里点了 New → Directory；`docker build` 找不到构建文件 | `Dockerfile` 是**无扩展名的普通文件**；`ls -la` 看开头是 `d` 还是 `-` |
 | **环境变量填成目录** | `ENV PYHIDS_DB_PATH=/data` → `sqlite3.connect("/data")` 报错 | 覆盖值要和**默认值同类型**：默认是 `data/events.db`（文件），就得填到文件名 |
