@@ -8,3 +8,10 @@ May  8 10:01:00 server sshd[1006]: Accepted password for ubuntu from 10.0.0.5 po
 May  8 10:05:00 server sudo: ubuntu : TTY=pts/0 ; PWD=/home/ubuntu ; COMMAND=/bin/ls
 May  8 11:00:00 server sshd[2001]: Failed password for bob from 5.6.7.8 port 41000 ssh2
 May  8 11:00:30 server sshd[2002]: Failed password for bob from 5.6.7.8 port 41001 ssh2
+May  8 12:00:00 server sudo: pam_unix(sudo:auth): authentication failure; logname=bob uid=1000 euid=0 tty=/dev/pts/1 ruser=bob rhost=  user=bob
+May  8 12:00:08 server sudo: pam_unix(sudo:auth): authentication failure; logname=bob uid=1000 euid=0 tty=/dev/pts/1 ruser=bob rhost=  user=bob
+May  8 12:00:16 server sudo: pam_unix(sudo:auth): authentication failure; logname=bob uid=1000 euid=0 tty=/dev/pts/1 ruser=bob rhost=  user=bob
+May  8 12:00:20 server sudo:      bob : 3 incorrect password attempts ; TTY=pts/1 ; PWD=/home/bob ; USER=root ; COMMAND=/bin/bash
+May  8 12:05:00 server sudo:      eve : user NOT in sudoers ; TTY=pts/2 ; PWD=/home/eve ; USER=root ; COMMAND=/bin/bash
+May  8 12:10:00 server su[3001]: FAILED SU (to root) mallory on pts/3
+May  8 12:15:00 server sudo:      ubuntu : TTY=pts/0 ; PWD=/home/ubuntu ; USER=root ; COMMAND=/usr/bin/apt update

@@ -75,13 +75,26 @@ def insert_event(event: Event, db_path: Path = DEFAULT_DB_PATH) -> int:
     logger.info("写入事件id=%s source=%s", new_id, event.source)
     return new_id
 
+def max_event_id(db_path: Path = DEFAULT_DB_PATH) -> int:
+    """当前最大事件 id，空库返回 0。SSE 用它当"有没有新事件"的游标。"""
+    conn = sqlite3.connect(db_path)
+    row = conn.execute("SELECT MAX(id) FROM events").fetchone()
+    conn.close()
+    # 空表时 MAX() 返回 NULL → Python 的 None
+    return row[0] if row[0] is not None else 0
+
+
 def query_events(
         limit: int = 50,
+        offset: int = 0,
         source: str | None = None,
         severity: str | None = None,
         db_path: Path = DEFAULT_DB_PATH,
 ) -> list[Event]:
-    """查询最近的事件，按时间倒序。source / severity 可选过滤（None=不过滤）。"""
+    """查询最近的事件，按时间倒序。source / severity 可选过滤（None=不过滤）。
+
+    offset 用于分页：跳过前 offset 条。
+    """
     conn = sqlite3.connect(db_path)
 
     clauses = []
@@ -99,9 +112,10 @@ def query_events(
         FROM events
         {where}
         ORDER BY detected_at DESC
-        LIMIT ?
+        LIMIT ? OFFSET ?
     """
     params.append(limit)
+    params.append(offset)
 
     cursor = conn.execute(SQL, params)
     rows = cursor.fetchall()
@@ -138,6 +152,9 @@ def dedup_key(event: Event) -> str:
     """事件的稳定指纹，用来去重"""
     if event.source == "ssh_brute_force":
         return f"ssh_brute_force:{event.payload['ip']}"
+    if event.source == "privilege_escalation":
+        # 按"谁 + 哪类滥用"去重，不带窗口时间 —— 否则窗口一挪指纹就变，去重失效
+        return f"privilege_escalation:{event.payload['user']}:{event.payload['kind']}"
     return f"{event.source}:{event.summary}"
 
 def dedup_keys_since(since: datetime, db_path: Path = DEFAULT_DB_PATH) -> set[str]:

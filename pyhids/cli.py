@@ -15,6 +15,7 @@ from pyhids.baseline import build_baseline, save_baseline
 from pyhids.config import Config, load_config
 from pyhids.checker import check, output_report, event_from_file_change
 from pyhids.ssh_check import check_ssh, print_ssh_report, event_from_brute_force
+from pyhids.sudo_check import check_sudo, print_sudo_report, event_from_privilege_abuse
 from pyhids.alert import alert_if_critical
 from pyhids.store import dedup_key, dedup_keys_since
 from pyhids.watch import watch
@@ -63,6 +64,10 @@ def main() -> None:
     parser_ssh = subparsers.add_parser("ssh-check", help="SSH爆破检测")
     parser_ssh.add_argument("--config", type=str, default=None, help="配置文件路径(config/watchlist.yaml)")
     parser_ssh.add_argument("--log-path", type=str, default=None, help="auth.log 路径（覆盖 watchlist.yaml 里的 ssh.log_path）")
+    # ================== 窗口 C2：sudo-check 业务 ==================
+    parser_sudo = subparsers.add_parser("sudo-check", help="sudo / su 提权滥用检测")
+    parser_sudo.add_argument("--config", type=str, default=None, help="配置文件路径(config/watchlist.yaml)")
+    parser_sudo.add_argument("--log-path", type=str, default=None, help="auth.log 路径（覆盖 watchlist.yaml 里的 sudo.log_path）")
     # ================== 窗口 D：events 业务 ==================
     parser_events = subparsers.add_parser("events", help="查询历史事件")
     parser_events.add_argument("--limit", type=int, default=50, help="最多显示条数（默认 50）")
@@ -144,6 +149,34 @@ def main() -> None:
                 alert_if_critical(event, cfg.alert)
 
         if report["summary"]["total_attempts"] > 0:
+            sys.exit(1)
+
+    elif args.command == "sudo-check":
+        if args.config is None:
+            cfg = load_config()
+        else:
+            cfg = load_config(args.config)
+
+        log_path = args.log_path or cfg.sudo.log_path
+
+        report = check_sudo(
+            log_path,
+            window_seconds=cfg.sudo.window_seconds,
+            threshold=cfg.sudo.threshold,
+        )
+
+        print_sudo_report(report)
+
+        # 落库 + 窗口去重后告警（与 ssh-check 同构）
+        cutoff = datetime.now() - timedelta(seconds=cfg.alert.dedup_window_seconds)
+        seen = dedup_keys_since(cutoff)
+        for abuse in report["abuses"]:
+            event = event_from_privilege_abuse(abuse)
+            insert_event(event)
+            if dedup_key(event) not in seen:
+                alert_if_critical(event, cfg.alert)
+
+        if report["summary"]["total_abuses"] > 0:
             sys.exit(1)
 
     elif args.command == "events":

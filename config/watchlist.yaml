@@ -12,6 +12,11 @@ ssh:
   window_seconds: 60
   threshold: 5
 
+sudo:
+  log_path: demo_files/auth.log    # 同一个 auth.log；生产同样改成 /var/log/auth.log
+  window_seconds: 60
+  threshold: 3                     # sudo 失败比 SSH 罕见，阈值更低
+
 alert:
   dingtalk_webhook: ""
   dedup_window_seconds: 3600

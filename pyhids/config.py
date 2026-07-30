@@ -23,6 +23,13 @@ class SSHConfig:
     threshold: int = 5
 
 @dataclass
+class SudoConfig:
+    """sudo / su 提权滥用检测的配置子结构。"""
+    log_path: str = "/var/log/auth.log"
+    window_seconds: int = 60
+    threshold: int = 3
+
+@dataclass
 class AlertConfig:
     """告警渠道设置"""
     dingtalk_webhook: str = ""
@@ -41,6 +48,7 @@ class Config:
     paths: List[str] = field(default_factory=list)
     scan_interval: int = 60
     ssh: SSHConfig = field(default_factory=SSHConfig)
+    sudo: SudoConfig = field(default_factory=SudoConfig)
     alert: AlertConfig = field(default_factory=AlertConfig)
 
 
@@ -84,6 +92,9 @@ def load_config(path: str | Path = DEFAULT_CONFIG_PATH) -> Config:
     ssh_data = data.pop("ssh", {})
     data["ssh"] = SSHConfig(**ssh_data)
 
+    sudo_data = data.pop("sudo", {})
+    data["sudo"] = SudoConfig(**sudo_data)
+
     # 第 6 步：把字典转成 Config 对象
     return Config(**data)
 
@@ -99,4 +110,8 @@ if __name__ == "__main__":
     print(f"  log_path:       {cfg.ssh.log_path}")
     print(f"  window_seconds: {cfg.ssh.window_seconds}")
     print(f"  threshold:      {cfg.ssh.threshold}")
+    print(f"sudo 配置:")
+    print(f"  log_path:       {cfg.sudo.log_path}")
+    print(f"  window_seconds: {cfg.sudo.window_seconds}")
+    print(f"  threshold:      {cfg.sudo.threshold}")
     print(f"告警webhook:       {cfg.alert.dingtalk_webhook or '(未配置)'}" )
