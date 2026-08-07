@@ -34,9 +34,12 @@ def app_data_dir() -> Path:
     override = os.getenv("PYHIDS_DATA_DIR")
     if override:
         return Path(override)
+    # 平台判断统一用 sys.platform，不混用 os.name —— 后者是 pathlib 决定
+    # 生成 WindowsPath 还是 PosixPath 的依据，测试里一旦 patch 它，
+    # Path() 就会在 Windows 上造出无法使用的 PosixPath。
     if sys.platform == "darwin":
         return Path.home() / "Library" / "Application Support" / APP_NAME
-    if os.name == "nt":
+    if sys.platform == "win32":
         base = os.getenv("APPDATA") or str(Path.home())
         return Path(base) / APP_NAME
     # Linux / BSD：遵循 XDG 规范
@@ -90,7 +93,7 @@ def find_free_port(preferred: int = 8000) -> int:
             #              白白退到随机端口（探测条件比真实绑定条件更严格）。
             #   Windows —— 允许绑定到另一个 socket 正在监听的端口，探测会永远
             #              成功，把已被占用的端口当成空闲的返回。
-            if os.name != "nt":
+            if sys.platform != "win32":
                 s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             try:
                 s.bind(("127.0.0.1", port))

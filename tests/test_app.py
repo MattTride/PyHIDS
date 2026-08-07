@@ -9,8 +9,13 @@ from pyhids.log import setup_logging
 
 
 def _isolated_env(monkeypatch):
-    """给测试一份独立的 os.environ，避免 bootstrap 的 setdefault 污染真实环境。"""
-    fake: dict[str, str] = {}
+    """给测试一份独立的 os.environ，避免 bootstrap 的 setdefault 污染真实环境。
+
+    只摘掉 PYHIDS_* 这些会干扰断言的键，其余原样保留 —— 整个清空是过度隔离：
+    Windows 上 Path.home() 只能靠 USERPROFILE 定位家目录（没有 pwd 模块可退回），
+    环境一空就直接抛 RuntimeError。
+    """
+    fake = {k: v for k, v in os.environ.items() if not k.startswith("PYHIDS_")}
     monkeypatch.setattr(os, "environ", fake)
     return fake
 
@@ -31,10 +36,19 @@ def test_app_data_dir_uses_application_support_on_macos(monkeypatch):
     assert app.app_data_dir() == Path.home() / "Library" / "Application Support" / "PyHIDS"
 
 
+def test_app_data_dir_uses_appdata_on_windows(monkeypatch):
+    env = _isolated_env(monkeypatch)
+    monkeypatch.setattr(sys, "platform", "win32")
+    env["APPDATA"] = "C:/Users/someone/AppData/Roaming"
+
+    assert app.app_data_dir() == Path("C:/Users/someone/AppData/Roaming") / "PyHIDS"
+
+
 def test_app_data_dir_follows_xdg_on_linux(monkeypatch):
+    # 只 patch sys.platform：os.name 是 pathlib 选择 WindowsPath / PosixPath
+    # 的依据，动它会让 Windows 上造出无法使用的 PosixPath。
     env = _isolated_env(monkeypatch)
     monkeypatch.setattr(sys, "platform", "linux")
-    monkeypatch.setattr(os, "name", "posix")
     env["XDG_DATA_HOME"] = "/home/someone/.local/share"
 
     assert app.app_data_dir() == Path("/home/someone/.local/share/pyhids")
