@@ -6,17 +6,15 @@
 
 ## 下载
 
-根据操作系统点击下载（链接指向最新 Release，会自动跳转到对应安装包）：
-
 [![Download for macOS](https://img.shields.io/badge/Download-macOS-111111?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/MattTride/PyHIDS/releases/latest/download/PyHIDS-macOS.zip)
-[![Download for Windows](https://img.shields.io/badge/Download-Windows-0067b8?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/MattTride/PyHIDS/releases/latest/download/PyHIDS-Windows.zip)
 
-- **macOS**：[下载 PyHIDS-macOS.zip](https://github.com/MattTride/PyHIDS/releases/latest/download/PyHIDS-macOS.zip)。解压后双击 `PyHIDS.app`；若提示「来自未识别的开发者」，右键点图标选「打开」。
-- **Windows**：[下载 PyHIDS-Windows.zip](https://github.com/MattTride/PyHIDS/releases/latest/download/PyHIDS-Windows.zip)。解压后进入 `PyHIDS` 目录双击 `PyHIDS.exe`；若 SmartScreen 拦截，点「更多信息」→「仍要运行」。
+[下载 PyHIDS-macOS.zip](https://github.com/MattTride/PyHIDS/releases/latest/download/PyHIDS-macOS.zip)，解压后双击 `PyHIDS.app`；若提示「来自未识别的开发者」，右键点图标选「打开」。
 
 双击启动后应用会自动建立基线、开启实时文件监控、启动仪表盘并打开浏览器，目标机器不需要安装 Python。
 
-> 安装包由 GitHub Actions 在推送 `v*` 版本标签时自动在 macOS / Windows 机器上构建（见 [`.github/workflows/release.yml`](.github/workflows/release.yml)），二进制不提交进仓库。首个 Release 生成后，上述链接即生效。
+> 安装包由 GitHub Actions 在推送 `v*` 版本标签时自动在 macOS 机器上构建（见 [`.github/workflows/release.yml`](.github/workflows/release.yml)），二进制不提交进仓库。
+>
+> 目前只提供 macOS 安装包。应用本身是跨平台的，Windows 和 Linux 用户可参照 [打包说明](#打包说明) 从源码自行打包。
 
 ## 项目特点
 
@@ -235,7 +233,7 @@ pyhids serve --host 127.0.0.1 --port 8000
 ├── docs/dashboard.png          # 仪表盘截图
 ├── launcher.py                 # PyInstaller 入口脚本
 ├── pyhids.spec                 # PyInstaller 打包配置
-├── .github/workflows/          # GitHub Actions：打 tag 自动构建 macOS/Windows 安装包
+├── .github/workflows/          # GitHub Actions：打 tag 自动构建 macOS 安装包
 ├── Dockerfile                  # 容器镜像定义
 ├── docker-compose.yml          # 容器编排（端口与挂卷）
 ├── pyproject.toml              # 包元数据与依赖
@@ -289,7 +287,9 @@ dist/PyHIDS.app/Contents/MacOS/PyHIDS check
 
 `dist/` 和 `build/` 属于生成文件，默认不会提交到 Git。
 
-发布带下载包的版本：推送一个 `v` 开头的标签，即可触发 GitHub Actions 在 macOS 与 Windows 上分别构建，并发布到对应的 GitHub Release：
+在其他平台上执行同样的命令即可得到对应产物：Windows 和 Linux 上 `dist/PyHIDS/` 是一个目录，其中 `PyHIDS`（Windows 为 `PyHIDS.exe`）是可执行文件。
+
+发布带下载包的版本：推送一个 `v` 开头的标签，即可触发 GitHub Actions 在 macOS 上构建并发布到对应的 GitHub Release：
 
 ```bash
 git tag v1.2.1
@@ -388,21 +388,19 @@ a Docker container, and a double-clickable desktop application.
 
 ## Download
 
-Pick the package for your operating system (links resolve to the latest release):
-
 [![Download for macOS](https://img.shields.io/badge/Download-macOS-111111?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/MattTride/PyHIDS/releases/latest/download/PyHIDS-macOS.zip)
-[![Download for Windows](https://img.shields.io/badge/Download-Windows-0067b8?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/MattTride/PyHIDS/releases/latest/download/PyHIDS-Windows.zip)
 
-- **macOS**: [PyHIDS-macOS.zip](https://github.com/MattTride/PyHIDS/releases/latest/download/PyHIDS-macOS.zip). Unzip and double-click `PyHIDS.app`. If macOS reports an unidentified developer, right-click the icon and choose "Open".
-- **Windows**: [PyHIDS-Windows.zip](https://github.com/MattTride/PyHIDS/releases/latest/download/PyHIDS-Windows.zip). Unzip, enter the `PyHIDS` folder and run `PyHIDS.exe`. If SmartScreen blocks it, click "More info" → "Run anyway".
+[PyHIDS-macOS.zip](https://github.com/MattTride/PyHIDS/releases/latest/download/PyHIDS-macOS.zip) — unzip and double-click `PyHIDS.app`. If macOS reports an unidentified developer, right-click the icon and choose "Open".
 
 On launch the app builds a baseline, starts the real-time file watcher, serves
 the dashboard and opens your browser. No Python installation is required.
 
-> Packages are built by GitHub Actions on real macOS and Windows runners whenever
-> a `v*` tag is pushed (see [`.github/workflows/release.yml`](.github/workflows/release.yml));
-> binaries are not committed to the repository. The links above become active
-> once the first release has been produced.
+> Packages are built by GitHub Actions on a real macOS runner whenever a `v*`
+> tag is pushed (see [`.github/workflows/release.yml`](.github/workflows/release.yml));
+> binaries are not committed to the repository.
+>
+> Only a macOS package is published. The application itself is cross-platform —
+> Windows and Linux users can build their own, see [Packaging](#packaging).
 
 ## Features
 
@@ -640,8 +638,12 @@ dist/PyHIDS.app/Contents/MacOS/PyHIDS check
 
 `dist/` and `build/` are generated and stay out of Git.
 
-To publish downloadable packages, push a `v` tag — GitHub Actions builds on both
-macOS and Windows and attaches the results to the matching GitHub Release:
+The same command works on other platforms: on Windows and Linux the result is a
+`dist/PyHIDS/` directory containing the `PyHIDS` executable (`PyHIDS.exe` on
+Windows).
+
+To publish a downloadable package, push a `v` tag — GitHub Actions builds on
+macOS and attaches the result to the matching GitHub Release:
 
 ```bash
 git tag v1.2.1

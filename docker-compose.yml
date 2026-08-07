@@ -1,7 +1,7 @@
 services:
   pyhids:
     build: .
-    image: pyhids:1.2.1
+    image: pyhids:1.2.2
     container_name: pyhids
     ports:
       - "8000:8000"

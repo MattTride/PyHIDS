@@ -8,7 +8,7 @@ import sys
 
 from PyInstaller.utils.hooks import collect_submodules
 
-VERSION = "1.2.1"
+VERSION = "1.2.2"
 
 # uvicorn 用字符串按名字动态 import 它的 loop / protocol 实现，静态分析看不见，
 # 必须整包收进来；watchdog 同理（不同平台用不同的 observer 后端）。
