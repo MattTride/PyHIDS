@@ -84,10 +84,14 @@ def find_free_port(preferred: int = 8000) -> int:
     """
     for port in (preferred, 0):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            # 必须和 uvicorn 一样设 SO_REUSEADDR：否则上一个实例刚退出、socket
-            # 还在 TIME_WAIT 时，探测会误判"端口被占"而白白退到随机端口 ——
-            # 探测条件比真实绑定条件更严格，就会误判。
-            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            # SO_REUSEADDR 在两个平台上语义完全不同，只能在 Unix 上设：
+            #   Unix    —— 允许重用处于 TIME_WAIT 的端口。必须和 uvicorn 保持
+            #              一致，否则上一个实例刚退出时探测会误判"端口被占"，
+            #              白白退到随机端口（探测条件比真实绑定条件更严格）。
+            #   Windows —— 允许绑定到另一个 socket 正在监听的端口，探测会永远
+            #              成功，把已被占用的端口当成空闲的返回。
+            if os.name != "nt":
+                s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             try:
                 s.bind(("127.0.0.1", port))
                 return s.getsockname()[1]
