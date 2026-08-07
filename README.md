@@ -4,6 +4,20 @@
 
 ![PyHIDS 仪表盘](docs/dashboard.png)
 
+## 下载
+
+根据操作系统点击下载（链接指向最新 Release，会自动跳转到对应安装包）：
+
+[![Download for macOS](https://img.shields.io/badge/Download-macOS-111111?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/MattTride/PyHIDS/releases/latest/download/PyHIDS-macOS.zip)
+[![Download for Windows](https://img.shields.io/badge/Download-Windows-0067b8?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/MattTride/PyHIDS/releases/latest/download/PyHIDS-Windows.zip)
+
+- **macOS**：[下载 PyHIDS-macOS.zip](https://github.com/MattTride/PyHIDS/releases/latest/download/PyHIDS-macOS.zip)。解压后双击 `PyHIDS.app`；若提示「来自未识别的开发者」，右键点图标选「打开」。
+- **Windows**：[下载 PyHIDS-Windows.zip](https://github.com/MattTride/PyHIDS/releases/latest/download/PyHIDS-Windows.zip)。解压后进入 `PyHIDS` 目录双击 `PyHIDS.exe`；若 SmartScreen 拦截，点「更多信息」→「仍要运行」。
+
+双击启动后应用会自动建立基线、开启实时文件监控、启动仪表盘并打开浏览器，目标机器不需要安装 Python。
+
+> 安装包由 GitHub Actions 在推送 `v*` 版本标签时自动在 macOS / Windows 机器上构建（见 [`.github/workflows/release.yml`](.github/workflows/release.yml)），二进制不提交进仓库。首个 Release 生成后，上述链接即生效。
+
 ## 项目特点
 
 - 三类检测能力：文件完整性、SSH 暴力破解、sudo / su 提权滥用。
@@ -221,6 +235,7 @@ pyhids serve --host 127.0.0.1 --port 8000
 ├── docs/dashboard.png          # 仪表盘截图
 ├── launcher.py                 # PyInstaller 入口脚本
 ├── pyhids.spec                 # PyInstaller 打包配置
+├── .github/workflows/          # GitHub Actions：打 tag 自动构建 macOS/Windows 安装包
 ├── Dockerfile                  # 容器镜像定义
 ├── docker-compose.yml          # 容器编排（端口与挂卷）
 ├── pyproject.toml              # 包元数据与依赖
@@ -273,6 +288,15 @@ dist/PyHIDS.app/Contents/MacOS/PyHIDS check
 ```
 
 `dist/` 和 `build/` 属于生成文件，默认不会提交到 Git。
+
+发布带下载包的版本：推送一个 `v` 开头的标签，即可触发 GitHub Actions 在 macOS 与 Windows 上分别构建，并发布到对应的 GitHub Release：
+
+```bash
+git tag v1.2.1
+git push origin v1.2.1
+```
+
+也可以在 GitHub 仓库的 Actions 页面手动运行「Build release packages」。构建流程会先执行完整测试，测试不通过则不会产出安装包。
 
 > 打包产物没有代码签名。在本机运行不受影响，但分发给他人时 macOS 会提示「来自未识别的开发者」，需右键点图标选「打开」。彻底解决需要 Apple 开发者账号进行签名与公证。
 
@@ -341,6 +365,363 @@ sudo systemctl enable --now pyhids-watch
 - 认证日志解析依赖文本格式日志文件，仅使用 systemd-journald 而无文本日志的系统暂不支持。
 - 同一问题每次检测都会新增一条记录，仪表盘上会出现重复行。告警层已按时间窗去重，存储层未做去重。
 - 当前版本不包含进程监控、端口监听变化检测和 rootkit 检测。
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+
+---
+
+# PyHIDS — Host-based Intrusion Detection System
+
+*English version. 中文说明见上方。*
+
+A lightweight host-based intrusion detection system (HIDS) written in Python — a
+simplified take on OSSEC / Wazuh, designed to run on a single host. It verifies
+SHA-256 fingerprints of critical files and parses system authentication logs to
+detect three classes of risk: file tampering, SSH brute-force attempts, and
+sudo / su privilege abuse. Findings are written to a local database, pushed as
+alerts, and displayed live on a web dashboard. It ships as a command-line tool,
+a Docker container, and a double-clickable desktop application.
+
+![PyHIDS dashboard](docs/dashboard.png)
+
+## Download
+
+Pick the package for your operating system (links resolve to the latest release):
+
+[![Download for macOS](https://img.shields.io/badge/Download-macOS-111111?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/MattTride/PyHIDS/releases/latest/download/PyHIDS-macOS.zip)
+[![Download for Windows](https://img.shields.io/badge/Download-Windows-0067b8?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/MattTride/PyHIDS/releases/latest/download/PyHIDS-Windows.zip)
+
+- **macOS**: [PyHIDS-macOS.zip](https://github.com/MattTride/PyHIDS/releases/latest/download/PyHIDS-macOS.zip). Unzip and double-click `PyHIDS.app`. If macOS reports an unidentified developer, right-click the icon and choose "Open".
+- **Windows**: [PyHIDS-Windows.zip](https://github.com/MattTride/PyHIDS/releases/latest/download/PyHIDS-Windows.zip). Unzip, enter the `PyHIDS` folder and run `PyHIDS.exe`. If SmartScreen blocks it, click "More info" → "Run anyway".
+
+On launch the app builds a baseline, starts the real-time file watcher, serves
+the dashboard and opens your browser. No Python installation is required.
+
+> Packages are built by GitHub Actions on real macOS and Windows runners whenever
+> a `v*` tag is pushed (see [`.github/workflows/release.yml`](.github/workflows/release.yml));
+> binaries are not committed to the repository. The links above become active
+> once the first release has been produced.
+
+## Features
+
+- Three detection sources: file integrity, SSH brute force, and sudo / su privilege abuse.
+- File integrity is based on SHA-256 baseline diffing, reporting modified, deleted and added files.
+- Two working modes: one-shot scans for cron, and a resident real-time monitor.
+- The real-time monitor debounces events, so one file save triggers exactly one check.
+- Authentication log parsing covers sshd, sudo and su records, detecting failure bursts and unauthorised escalation.
+- All events are stored in a single-file SQLite database and remain queryable.
+- Alerting supports DingTalk webhooks and SMTP email, deduplicated by event fingerprint within a time window.
+- A failing alert never interrupts the detection pipeline.
+- Built-in FastAPI dashboard with source and severity filters and pagination.
+- The dashboard uses SSE push and issues no requests at all while idle.
+- Detection commands exit with status 1 on findings, so they compose into shell scripts and monitoring systems.
+- Data and configuration paths are overridable by environment variable, for container volumes and multi-environment deploys.
+- A non-root, health-checked Docker image is provided.
+- PyInstaller packaging produces a standalone desktop app requiring no Python on the target machine.
+- Core logic is covered by 89 pytest unit tests that neither touch the network nor require a database.
+
+## Detection rules
+
+| Subcommand | Subject | Trigger | Severity |
+|---|---|---|---|
+| `check` | files listed in the config | SHA-256 differs from baseline (modified / deleted) | critical |
+| `check` | files newly added to the config | absent from the baseline (added) | warning |
+| `ssh-check` | sshd records in auth.log | 5 failed logins from one IP within 60s | critical |
+| `sudo-check` | sudo / su records in auth.log | 3 authentication failures from one user within 60s | critical |
+| `sudo-check` | sudo records in auth.log | any `user NOT in sudoers` line | critical |
+
+All thresholds are configurable. `user NOT in sudoers` bypasses the threshold and
+is reported on a single occurrence — an account with no sudo rights attempting to
+escalate is suspicious on its own. A lone failed `su` is ignored, so a mistyped
+password is not mistaken for an attack.
+
+## Requirements
+
+- macOS, Linux or Windows.
+- Python 3.10 or newer (the code uses `X | None` and `list[X]` type-hint syntax).
+- Runtime dependencies `PyYAML`, `fastapi`, `uvicorn` and `watchdog` are installed automatically.
+
+> SSH and privilege detection require a text-format authentication log:
+> `/var/log/auth.log` on Debian / Ubuntu, `/var/log/secure` on RHEL / CentOS.
+> macOS has no such file, so only file integrity monitoring and the dashboard
+> are available there.
+
+## Quick start
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+pyhids --help
+```
+
+Don't want a Python environment? Use the packaged desktop build — see
+[Download](#download).
+
+## Usage
+
+1. Edit `config/watchlist.yaml` with the files to monitor and the authentication log path.
+2. Build a baseline while the system is trusted: `pyhids baseline`.
+3. Run detections as needed: `pyhids check`, `pyhids ssh-check`, `pyhids sudo-check`.
+4. For immediate reaction to file changes, use the resident mode: `pyhids watch` (Ctrl+C to stop).
+5. Review history with `pyhids events --limit 20`, or start `pyhids serve` and open <http://127.0.0.1:8000>.
+6. Filter by source and severity on the dashboard, and page back through older records.
+
+| Command | Description |
+|---|---|
+| `pyhids baseline` | Scan the configured files and record SHA-256 fingerprints |
+| `pyhids check` | Diff against the baseline: modified / deleted / added |
+| `pyhids ssh-check` | Parse the auth log for SSH brute force |
+| `pyhids sudo-check` | Parse the auth log for sudo / su privilege abuse |
+| `pyhids events` | Query stored events, supports `--limit` and `--source` |
+| `pyhids watch` | Resident real-time file monitoring |
+| `pyhids serve` | Start the web dashboard |
+
+`check`, `ssh-check` and `sudo-check` exit 1 when they find something:
+
+```bash
+pyhids check || echo "file tampering detected"
+```
+
+> When the baseline is built decides whether any of this means anything. The
+> baseline *is* the definition of "normal", so building it on an
+> already-compromised host permanently whitelists the backdoor.
+
+## Configuration
+
+See `config/watchlist.yaml`:
+
+```yaml
+algorithm: sha256
+
+paths:                              # files to monitor for integrity
+  - /etc/passwd
+  - /etc/ssh/sshd_config
+  - /root/.ssh/authorized_keys
+
+ssh:
+  log_path: /var/log/auth.log
+  window_seconds: 60
+  threshold: 5
+
+sudo:
+  log_path: /var/log/auth.log
+  window_seconds: 60
+  threshold: 3
+
+alert:
+  dingtalk_webhook: ""              # set to enable DingTalk push
+  dedup_window_seconds: 3600        # same issue alerts at most once per window
+  email_host: ""                    # set to enable SMTP email
+  email_port: 587
+  email_user: ""
+  email_password: ""
+  email_from: ""
+  email_to: ""
+```
+
+Paths can be overridden by environment variables — the mechanism Docker and the
+desktop app use to relocate their data:
+
+| Variable | Default |
+|---|---|
+| `PYHIDS_DB_PATH` | `data/events.db` |
+| `PYHIDS_BASELINE_PATH` | `data/baseline.json` |
+| `PYHIDS_CONFIG_PATH` | `config/watchlist.yaml` |
+| `PYHIDS_DATA_DIR` | desktop app data directory |
+
+The desktop app seeds a configuration in the user data directory on first launch
+and never overwrites it afterwards:
+
+| Platform | Directory |
+|---|---|
+| macOS | `~/Library/Application Support/PyHIDS/` |
+| Linux | `~/.local/share/pyhids/` |
+| Windows | `%APPDATA%\PyHIDS\` |
+
+It holds `watchlist.yaml`, `events.db`, `baseline.json` and `pyhids.log`. A
+double-clicked app has no terminal, so `pyhids.log` is the only place startup
+errors appear.
+
+## Event storage format
+
+Every event goes into one SQLite table, with source-specific fields kept as JSON
+in the `payload` column. Adding a detection source requires no schema change:
+
+```sql
+CREATE TABLE events (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    detected_at TEXT NOT NULL,      -- ISO 8601 timestamp
+    source      TEXT NOT NULL,      -- file_integrity | ssh_brute_force | privilege_escalation
+    severity    TEXT NOT NULL,      -- info | warning | critical
+    summary     TEXT NOT NULL,      -- one human-readable line
+    payload     TEXT NOT NULL       -- JSON string, source-specific fields
+);
+```
+
+A single event from `/api/events` looks roughly like this:
+
+```json
+{
+  "detected_at": "2026-08-03T19:11:41.594062",
+  "source": "privilege_escalation",
+  "severity": "critical",
+  "summary": "bob 提权失败风暴（3 次 / 窗口 2026-05-08 12:00:00 → 2026-05-08 12:00:16）",
+  "payload": {
+    "user": "bob",
+    "kind": "burst",
+    "fail_count": 3,
+    "window_start": "2026-05-08T12:00:00",
+    "window_end": "2026-05-08T12:00:16"
+  }
+}
+```
+
+## Dashboard
+
+```bash
+pyhids serve --host 127.0.0.1 --port 8000
+```
+
+- Events are listed newest first; critical is red, warning is orange.
+- Filter by source and severity, and choose the page size, from the header.
+- Previous / next buttons sit at the bottom, with the live-connection indicator on the right.
+- New events arrive over SSE without a page refresh; auto-refresh pauses past page 1 so browsing history is not interrupted.
+- `/api/events` and `/api/stream` are available for external integration.
+
+> The dashboard has no authentication and binds `127.0.0.1` by default. Do not
+> expose it publicly — use an SSH tunnel, or an authenticating reverse proxy.
+
+## Architecture
+
+The project is organised in three layers with a strict downward dependency:
+
+- **Domain** (`checker.py`, `ssh_check.py`, `sudo_check.py`, `watch.py`): pure detection logic. It never imports the storage layer; it exposes `event_from_*` factories declaring what events it can produce.
+- **Infrastructure** (`store.py`, `alert.py`, `web.py`): database access, alert delivery, web serving.
+- **Adapter** (`cli.py`, `app.py`): parses arguments and hands domain-produced events to infrastructure for storage and alerting.
+
+The immediate payoff is that almost every unit test runs without a database —
+all 89 finish in 0.3 seconds. The real-time monitor follows the same rule,
+delegating storage and alerting through an `on_change` callback.
+
+A few implementation details worth noting:
+
+- The debouncer takes "now" as a parameter instead of reading the clock itself, which makes the timing logic testable without sleeping.
+- Alert dedup fingerprints use only stable identifiers (user, IP, problem type) and deliberately exclude window boundaries, which would change as the window slides and silently break dedup.
+- SSE pushes only the event-id cursor rather than event content, so filtering and pagination stay in the existing frontend code instead of being reimplemented in the stream.
+- Path constants read their environment variables at import time, so the desktop app entry point defers those imports until after the data directory has been initialised.
+
+## Running tests
+
+```bash
+python3 -m pytest -v
+```
+
+89 tests are expected to pass. They neither use the network nor write to a real
+database — everything goes through pytest temporary directories.
+
+## Packaging
+
+### Desktop app
+
+```bash
+pip install -e ".[dev]"
+pyinstaller pyhids.spec --noconfirm
+```
+
+The result is `dist/PyHIDS.app` on macOS (about 32 MB). The bundled binary keeps
+the full command-line interface:
+
+```bash
+dist/PyHIDS.app/Contents/MacOS/PyHIDS check
+```
+
+`dist/` and `build/` are generated and stay out of Git.
+
+To publish downloadable packages, push a `v` tag — GitHub Actions builds on both
+macOS and Windows and attaches the results to the matching GitHub Release:
+
+```bash
+git tag v1.2.1
+git push origin v1.2.1
+```
+
+The workflow runs the full test suite before packaging, so a failing test means
+no installer is produced. It can also be started manually from the Actions tab.
+
+> The packages are not code-signed. Running them locally is unaffected, but
+> macOS will warn recipients about an unidentified developer — right-click the
+> icon and choose "Open". Signing and notarisation require an Apple developer
+> account.
+
+### Docker
+
+```bash
+docker compose up -d --build
+```
+
+The image runs as the unprivileged user `pyhids` (UID 1000) with a healthcheck
+against `/api/events`. On Linux, make the mounted `data/` writable by that UID:
+
+```bash
+sudo chown -R 1000:1000 data
+```
+
+Mount monitored directories read-only. A container only sees its own filesystem,
+so configured paths that were never mounted are reported as deleted:
+
+```yaml
+volumes:
+  - /etc:/host/etc:ro     # then use /host/etc/... paths in the config
+```
+
+The `:ro` is not decoration: if PyHIDS itself is compromised, the attacker still
+cannot tamper with what it watches.
+
+## Server deployment
+
+Build the baseline while the system is trusted, then schedule the checks with
+cron (absolute paths — cron's PATH is nearly empty):
+
+```bash
+sudo pyhids baseline
+```
+
+```bash
+*/10 * * * * /opt/pyhids/.venv/bin/pyhids check      >> /var/log/pyhids.log 2>&1
+*/5  * * * * /opt/pyhids/.venv/bin/pyhids ssh-check  >> /var/log/pyhids.log 2>&1
+*/5  * * * * /opt/pyhids/.venv/bin/pyhids sudo-check >> /var/log/pyhids.log 2>&1
+```
+
+For file monitoring, a resident service beats cron by a wide margin — seconds
+instead of minutes. Example systemd unit:
+
+```ini
+[Unit]
+Description=PyHIDS real-time file monitor
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/pyhids
+ExecStart=/opt/pyhids/.venv/bin/pyhids watch
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+## Caveats
+
+- The baseline must be built on a trusted system, or existing backdoors are recorded as normal.
+- `baseline.json` is itself a target: an attacker who plants a backdoor and reruns `pyhids baseline` has erased the evidence. Make it root-owned and read-only in production, and diff it against a copy on a separate host.
+- Reading `/var/log/auth.log` requires privileges — use root's crontab, or add the running user to the `adm` group.
+- The dashboard has no authentication and should not be exposed publicly.
+- Log parsing requires text-format log files; systems with only systemd-journald are not supported yet.
+- Every check inserts a new row, so the dashboard shows repeats. Alerting is deduplicated by time window; storage is not.
+- This version does not include process monitoring, listening-port change detection, or rootkit detection.
 
 ## License
 

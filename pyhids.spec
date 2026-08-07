@@ -4,6 +4,8 @@
 构建：pyinstaller pyhids.spec --noconfirm
 产物：dist/PyHIDS.app（macOS）/ dist/PyHIDS/（其他平台）
 """
+import sys
+
 from PyInstaller.utils.hooks import collect_submodules
 
 VERSION = "1.2.0"
@@ -50,19 +52,22 @@ coll = COLLECT(
     name="PyHIDS",
 )
 
-app = BUNDLE(
-    coll,
-    name="PyHIDS.app",
-    icon=None,
-    bundle_identifier="com.matttride.pyhids",
-    version=VERSION,
-    info_plist={
-        "CFBundleName": "PyHIDS",
-        "CFBundleDisplayName": "PyHIDS",
-        "CFBundleShortVersionString": VERSION,
-        "CFBundleVersion": VERSION,
-        "NSHighResolutionCapable": True,
-        # 后台没有窗口，但保留 Dock 图标，用户才有地方退出它
-        "LSUIElement": False,
-    },
-)
+# BUNDLE 只在 macOS 上有意义（.app 是 macOS 特有的目录结构）。
+# Windows / Linux 上产物就是 COLLECT 出来的 dist/PyHIDS/ 目录。
+if sys.platform == "darwin":
+    app = BUNDLE(
+        coll,
+        name="PyHIDS.app",
+        icon=None,
+        bundle_identifier="com.matttride.pyhids",
+        version=VERSION,
+        info_plist={
+            "CFBundleName": "PyHIDS",
+            "CFBundleDisplayName": "PyHIDS",
+            "CFBundleShortVersionString": VERSION,
+            "CFBundleVersion": VERSION,
+            "NSHighResolutionCapable": True,
+            # 后台没有窗口，但保留 Dock 图标，用户才有地方退出它
+            "LSUIElement": False,
+        },
+    )

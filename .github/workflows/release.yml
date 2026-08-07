@@ -1,0 +1,70 @@
+name: Build release packages
+
+# 在真实的 macOS / Windows runner 上打包桌面应用（PyInstaller 无法交叉编译）。
+# 触发方式：推送 `v` 开头的版本标签，或在 Actions 页面手动运行。
+# 打标签触发时，产物会自动附加到对应的 GitHub Release，
+# README 里指向 "latest release" 的下载链接才能生效。
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.label }} package
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            label: macOS
+            asset: PyHIDS-macOS.zip
+          - os: windows-latest
+            label: Windows
+            asset: PyHIDS-Windows.zip
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install project and build tooling
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      # 先跑测试再打包：与其发布一个坏掉的安装包，不如让构建直接失败
+      - name: Run tests
+        run: python -m pytest -q
+
+      - name: Build macOS .app
+        if: runner.os == 'macOS'
+        run: |
+          pyinstaller --noconfirm pyhids.spec
+          ditto -c -k --keepParent "dist/PyHIDS.app" "${{ matrix.asset }}"
+
+      # Windows 上 spec 里的 BUNDLE 会被跳过，产物是 dist/PyHIDS/ 目录
+      - name: Build Windows package
+        if: runner.os == 'Windows'
+        run: |
+          pyinstaller --noconfirm pyhids.spec
+          Compress-Archive -Path dist/PyHIDS -DestinationPath "${{ matrix.asset }}"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: ${{ matrix.asset }}
+
+      - name: Attach to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.asset }}
