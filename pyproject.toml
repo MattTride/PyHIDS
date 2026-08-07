@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyhids"
-version = "1.2.0"
+version = "1.2.1"
 description = "轻量级主机入侵检测系统：文件完整性 + 实时监控 + SSH/提权检测 + 告警 + Web 仪表盘"
 readme = "README.md"
 requires-python = ">=3.10"
