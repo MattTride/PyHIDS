@@ -7,18 +7,38 @@ from __future__ import annotations
 
 import argparse
 import sys
-
+from collections.abc import Iterable
 from datetime import datetime, timedelta
-from pyhids.store import query_events, print_events_table, init_db, insert_event
-from pyhids.log import setup_logging
-from pyhids.baseline import build_baseline, save_baseline
-from pyhids.config import Config, load_config
-from pyhids.checker import check, output_report, event_from_file_change
-from pyhids.ssh_check import check_ssh, print_ssh_report, event_from_brute_force
-from pyhids.sudo_check import check_sudo, print_sudo_report, event_from_privilege_abuse
+
 from pyhids.alert import alert_if_critical
-from pyhids.store import dedup_key, dedup_keys_since
+from pyhids.baseline import build_baseline, save_baseline
+from pyhids.checker import check, event_from_file_change, output_report
+from pyhids.config import Config, load_config
+from pyhids.log import setup_logging
+from pyhids.ssh_check import check_ssh, event_from_brute_force, print_ssh_report
+from pyhids.store import (
+    Event,
+    dedup_key,
+    dedup_keys_since,
+    init_db,
+    insert_event,
+    print_events_table,
+    query_events,
+)
+from pyhids.sudo_check import check_sudo, event_from_privilege_abuse, print_sudo_report
 from pyhids.watch import watch
+
+
+def persist_events(events: Iterable[Event], cfg: Config) -> None:
+    """事件全部落库，但同一去重窗口（含当前批次）只告警一次。"""
+    cutoff = datetime.now() - timedelta(seconds=cfg.alert.dedup_window_seconds)
+    seen = dedup_keys_since(cutoff)
+    for event in events:
+        insert_event(event)
+        key = dedup_key(event)
+        if key not in seen:
+            alert_if_critical(event, cfg.alert)
+            seen.add(key)
 
 
 def handle_fim_report(report: dict, cfg: Config) -> None:
@@ -28,14 +48,11 @@ def handle_fim_report(report: dict, cfg: Config) -> None:
     """
     output_report(report)
 
-    cutoff = datetime.now() - timedelta(seconds=cfg.alert.dedup_window_seconds)
-    seen = dedup_keys_since(cutoff)
+    events = []
     for change_type in ("modified", "deleted", "added"):
         for file_path in report[change_type]:
-            event = event_from_file_change(change_type, file_path)
-            insert_event(event)
-            if dedup_key(event) not in seen:
-                alert_if_critical(event, cfg.alert)
+            events.append(event_from_file_change(change_type, file_path))
+    persist_events(events, cfg)
 
 
 def main() -> None:
@@ -140,13 +157,10 @@ def main() -> None:
         print_ssh_report(report)
 
         # 把每个暴破嫌疑落库，并触发告警
-        cutoff = datetime.now() - timedelta(seconds=cfg.alert.dedup_window_seconds)
-        seen = dedup_keys_since(cutoff)
-        for attempt in report["attempts"]:
-            event = event_from_brute_force(attempt)
-            insert_event(event)
-            if dedup_key(event) not in seen:
-                alert_if_critical(event, cfg.alert)
+        persist_events(
+            (event_from_brute_force(attempt) for attempt in report["attempts"]),
+            cfg,
+        )
 
         if report["summary"]["total_attempts"] > 0:
             sys.exit(1)
@@ -168,13 +182,10 @@ def main() -> None:
         print_sudo_report(report)
 
         # 落库 + 窗口去重后告警（与 ssh-check 同构）
-        cutoff = datetime.now() - timedelta(seconds=cfg.alert.dedup_window_seconds)
-        seen = dedup_keys_since(cutoff)
-        for abuse in report["abuses"]:
-            event = event_from_privilege_abuse(abuse)
-            insert_event(event)
-            if dedup_key(event) not in seen:
-                alert_if_critical(event, cfg.alert)
+        persist_events(
+            (event_from_privilege_abuse(abuse) for abuse in report["abuses"]),
+            cfg,
+        )
 
         if report["summary"]["total_abuses"] > 0:
             sys.exit(1)

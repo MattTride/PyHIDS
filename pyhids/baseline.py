@@ -4,14 +4,17 @@ pyhids.baseline — 基线生成与持久化模块
 职责：根据配置扫描所有监控文件，生成"指纹快照"，保存到 JSON。
 """
 from __future__ import annotations
+
 import json
+import logging
 import os
+import tempfile
 from datetime import datetime
 from pathlib import Path
 
-from pyhids.config import Config, DEFAULT_CONFIG_PATH, load_config
+from pyhids.config import Config, load_config
 from pyhids.hasher import hash_file
-import logging
+
 logger = logging.getLogger(__name__)
 
 DEFAULT_BASELINE_PATH = Path(os.getenv("PYHIDS_BASELINE_PATH", "data/baseline.json"))
@@ -64,8 +67,29 @@ def build_baseline(cfg: Config) -> dict:
 
 
 def save_baseline(baseline: dict, path: str | Path = DEFAULT_BASELINE_PATH) -> None:
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(baseline, f, indent=2, ensure_ascii=False)
+    """原子保存基线，避免中途失败留下半截 JSON。"""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    temp_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=path.parent,
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as f:
+            temp_path = Path(f.name)
+            json.dump(baseline, f, indent=2, ensure_ascii=False)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(temp_path, path)
+    except Exception:
+        if temp_path is not None:
+            temp_path.unlink(missing_ok=True)
+        raise
     logger.info("基线已经保存到 %s", path)
 
 

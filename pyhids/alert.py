@@ -3,14 +3,15 @@ pyhids.alert - 把检测到的事件格式化成告警，并发送出去。
 """
 
 from __future__ import annotations
-from pyhids.store import Event
-from email.message import EmailMessage
-from pyhids.config import AlertConfig
 
-import smtplib
-import logging
 import json
+import logging
+import smtplib
 import urllib.request
+from email.message import EmailMessage
+
+from pyhids.config import AlertConfig
+from pyhids.store import Event
 
 logger = logging.getLogger(__name__)
 
@@ -34,8 +35,10 @@ def send_dingtalk(text: str, webhook_url: str) -> None:
         headers={"Content-Type": "application/json"},
         method="POST",
     )
-    urllib.request.urlopen(request, timeout=5)
-    logger.info("已发送钉钉告警到 %s", webhook_url)
+    with urllib.request.urlopen(request, timeout=5):
+        pass
+    # webhook URL 通常含有密钥，不能写进日志。
+    logger.info("已发送钉钉告警")
 
 def alert_if_critical(event: Event, alert_cfg: AlertConfig) -> None:
     """critical 事件 → 分发到所有已配置的渠道。某渠道失败不影响其它渠道/检测。"""
@@ -46,7 +49,7 @@ def alert_if_critical(event: Event, alert_cfg: AlertConfig) -> None:
 
     if alert_cfg.dingtalk_webhook:
         try:
-            send_dingtalk(format_alert(event), alert_cfg.dingtalk_webhook)
+            send_dingtalk(text, alert_cfg.dingtalk_webhook)
         except Exception as e:
             logger.warning("发送告警失败(已忽略，不影响检测) : %s", e)
 
