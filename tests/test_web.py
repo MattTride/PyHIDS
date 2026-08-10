@@ -1,8 +1,10 @@
 import asyncio
 from datetime import datetime
+
 from fastapi.testclient import TestClient
-from pyhids.store import Event
+
 from pyhids import web
+from pyhids.store import Event
 
 client = TestClient(web.app)
 
@@ -32,6 +34,8 @@ def test_dashboard_page_is_served():
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
     assert "PyHIDS" in response.text
+    assert "row.innerHTML" not in response.text
+    assert "cell.textContent" in response.text
 
 def test_api_events_forwards_filters(monkeypatch):
     captured = {}
@@ -55,6 +59,12 @@ def test_api_events_forwards_pagination(monkeypatch):
 
     assert captured["limit"] == 20
     assert captured["offset"] == 40
+
+
+def test_api_events_rejects_invalid_pagination():
+    assert client.get("/api/events?limit=0").status_code == 422
+    assert client.get("/api/events?limit=101").status_code == 422
+    assert client.get("/api/events?offset=-1").status_code == 422
 
 def test_cursor_stream_pushes_the_current_cursor_first(monkeypatch):
     """SSE 连上后应立刻推一次当前游标，前端不用等到第一条新事件才知道状态。

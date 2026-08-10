@@ -32,7 +32,7 @@
 - 数据与配置路径均可用环境变量覆盖，便于容器挂卷和多环境部署。
 - 提供非 root 运行、带健康检查的 Docker 镜像。
 - 可用 PyInstaller 打包成独立桌面应用，目标机器无需安装 Python。
-- 核心逻辑由 89 个 pytest 单元测试覆盖，运行时不联网、不依赖数据库。
+- 核心逻辑由 102 个 pytest 单元测试覆盖，运行时不联网、不依赖数据库。
 
 ## 检测能力
 
@@ -224,7 +224,7 @@ pyhids serve --host 127.0.0.1 --port 8000
 │   ├── app.py                  # 桌面应用模式入口
 │   ├── log.py                  # 日志统一配置
 │   └── cli.py                  # 命令行入口（7 个子命令）
-├── tests/                      # pytest 单元测试（89 个）
+├── tests/                      # pytest 单元测试（102 个）
 ├── config/
 │   ├── watchlist.yaml          # 开发用配置
 │   └── watchlist.default.yaml  # 桌面应用的默认配置
@@ -251,7 +251,7 @@ pyhids serve --host 127.0.0.1 --port 8000
 - **基础设施层**（`store.py`、`alert.py`、`web.py`）：负责数据库读写、告警发送和网页服务。
 - **适配层**（`cli.py`、`app.py`）：解析参数，把领域层产出的事件交给基础设施层落库和告警。
 
-这样划分的直接收益是绝大多数单元测试不需要数据库即可运行，整套 89 个测试在 0.3 秒内跑完。实时监控模块同样通过 `on_change` 回调把落库与告警交给上层，自身不感知下游行为。
+这样划分的直接收益是绝大多数单元测试不需要数据库即可运行，整套 102 个测试在 0.3 秒内跑完。实时监控模块同样通过 `on_change` 回调把落库与告警交给上层，自身不感知下游行为。
 
 几个关键实现细节：
 
@@ -266,7 +266,7 @@ pyhids serve --host 127.0.0.1 --port 8000
 python3 -m pytest -v
 ```
 
-预期 89 个测试全部通过。测试不联网、不写入真实数据库，全部使用 pytest 的临时目录。
+预期 102 个测试全部通过。测试不联网、不写入真实数据库，全部使用 pytest 的临时目录。
 
 ## 打包说明
 
@@ -418,7 +418,7 @@ the dashboard and opens your browser. No Python installation is required.
 - Data and configuration paths are overridable by environment variable, for container volumes and multi-environment deploys.
 - A non-root, health-checked Docker image is provided.
 - PyInstaller packaging produces a standalone desktop app requiring no Python on the target machine.
-- Core logic is covered by 89 pytest unit tests that neither touch the network nor require a database.
+- Core logic is covered by 102 pytest unit tests that neither touch the network nor require a database.
 
 ## Detection rules
 
@@ -617,7 +617,7 @@ A few implementation details worth noting:
 python3 -m pytest -v
 ```
 
-89 tests are expected to pass. They neither use the network nor write to a real
+102 tests are expected to pass. They neither use the network nor write to a real
 database — everything goes through pytest temporary directories.
 
 ## Packaging

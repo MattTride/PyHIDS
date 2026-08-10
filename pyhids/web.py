@@ -5,8 +5,9 @@ from __future__ import annotations
 
 import asyncio
 import json
+from typing import Annotated
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Query
 from fastapi.responses import HTMLResponse, StreamingResponse
 
 from pyhids.store import max_event_id, query_events
@@ -97,11 +98,17 @@ DASHBOARD_HTML = """
       const events = await res.json();
 
       const tbody = $('events');
-      tbody.innerHTML = '';
+      tbody.replaceChildren();
       for (const e of events) {
         const row = document.createElement('tr');
-        row.innerHTML = `<td>${e.detected_at}</td><td>${e.source}</td>`
-                      + `<td class="${e.severity}">${e.severity}</td><td>${e.summary}</td>`;
+        for (const value of [e.detected_at, e.source, e.severity, e.summary]) {
+          const cell = document.createElement('td');
+          cell.textContent = String(value ?? '');
+          row.appendChild(cell);
+        }
+        if (['critical', 'warning', 'info'].includes(e.severity)) {
+          row.children[2].classList.add(e.severity);
+        }
         tbody.appendChild(row);
       }
 
@@ -147,8 +154,8 @@ def dashboard() -> str:
 
 @app.get("/api/events")
 def api_events(
-    limit: int = 50,
-    offset: int = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
     source: str | None = None,
     severity: str | None = None,
 ) -> list[dict]:
